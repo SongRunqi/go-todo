@@ -179,7 +179,10 @@ func DoI(todoStr string) {
 	switch intend {
 	case "create":
 		CreateTask(todo)
+	case "list":
+		List()
 	}
+
 }
 
 func LoadTodos(path string) ([]TodoItem, error) {
@@ -216,5 +219,15 @@ func CreateTask(todo TodoItem) {
 	}
 	todos = append(todos, todo)
 	saveTodos(path, todos)
+
+}
+
+func List() {
+	todos, err := LoadTodos(path)
+	if err != nil {
+		fmt.Println("[list], err", err.Error())
+	}
+
+	fmt.Printf("todos : %+v", todos)
 
 }
