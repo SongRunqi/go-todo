@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 )
 
 const cmd = `
@@ -219,6 +220,7 @@ func GetTask(todos *[]TodoItem, id int) {
 			md := fmt.Sprintf(`# %s
 
 - **Task ID:** %d
+- **Task Name:** %s
 - **Status:** %s
 - **User:** %s
 - **Due Date:** %s
@@ -233,6 +235,7 @@ func GetTask(todos *[]TodoItem, id int) {
 **Tips:** To update this task, copy this markdown and modify the fields above.`,
 				task.TaskName,
 				task.TaskID,
+				task.TaskName,
 				task.Status,
 				task.User,
 				task.DueDate,
@@ -333,6 +336,16 @@ func UpdateTask(todos *[]TodoItem, todoMD string) {
 					idStr = strings.TrimSpace(idStr)
 					fmt.Sscanf(idStr, "%d", &updatedTask.TaskID)
 				}
+			} else if strings.Contains(line, "Task Name:") {
+				// Extract Task Name from list format like "- **Task Name:** Task Title"
+				parts := strings.Split(line, "Task Name:")
+				if len(parts) > 1 {
+					taskNameStr := strings.TrimSpace(parts[1])
+					// Remove any ** markdown formatting
+					taskNameStr = strings.Trim(taskNameStr, "* ")
+					updatedTask.TaskName = strings.TrimSpace(taskNameStr)
+					log.Println("[update] Parsed TaskName:", updatedTask.TaskName)
+				}
 			} else if strings.Contains(line, "Status:") {
 				// Extract status from list format like "- **Status:** pending"
 				parts := strings.Split(line, "Status:")
@@ -369,11 +382,29 @@ func UpdateTask(todos *[]TodoItem, todoMD string) {
 					updatedTask.Urgent = strings.TrimSpace(urgencyStr)
 				}
 			} else if strings.Contains(line, "Created:") {
-				// Skip created time
-				continue
+				// Parse created time
+				parts := strings.Split(line, "Created:")
+				if len(parts) > 1 {
+					createdStr := strings.TrimSpace(parts[1])
+					createdStr = strings.Trim(createdStr, "* ")
+					// Try to parse the time
+					if t, err := time.Parse("2006-01-02 15:04:05", createdStr); err == nil {
+						updatedTask.CreateTime = t
+						log.Println("[update] Parsed CreateTime:", updatedTask.CreateTime)
+					}
+				}
 			} else if strings.Contains(line, "End Time:") {
-				// Skip end time
-				continue
+				// Parse end time
+				parts := strings.Split(line, "End Time:")
+				if len(parts) > 1 {
+					endTimeStr := strings.TrimSpace(parts[1])
+					endTimeStr = strings.Trim(endTimeStr, "* ")
+					// Try to parse the time
+					if t, err := time.Parse("2006-01-02 15:04:05", endTimeStr); err == nil {
+						updatedTask.EndTime = t
+						log.Println("[update] Parsed EndTime:", updatedTask.EndTime)
+					}
+				}
 			} else if strings.Contains(line, "## Description") || (strings.Contains(line, "Description") && !strings.Contains(line, "##")) {
 				// Start description section (handle both ## Description and just Description)
 				inDescription = true
@@ -411,6 +442,14 @@ func UpdateTask(todos *[]TodoItem, todoMD string) {
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == updatedTask.TaskID {
 			log.Println("[update] updating task id:", updatedTask.TaskID, "name:", updatedTask.TaskName)
+
+			// Preserve CreateTime and EndTime from original task
+			if updatedTask.CreateTime.IsZero() {
+				updatedTask.CreateTime = (*todos)[i].CreateTime
+			}
+			if updatedTask.EndTime.IsZero() {
+				updatedTask.EndTime = (*todos)[i].EndTime
+			}
 
 			// Update the task in place
 			(*todos)[i] = updatedTask
