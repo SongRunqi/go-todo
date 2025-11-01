@@ -14,16 +14,22 @@ func Chat(req OpenAIRequest) (string, error) {
 	// struct -> json
 	b, _ := json.Marshal(req)
 
+	// Get base URL from environment variable, with fallback to default
+	baseUrl := os.Getenv("LLM_BASE_URL")
+	if baseUrl == "" {
+		baseUrl = "https://api.deepseek.com/chat/completions"
+	}
+
 	// create a client
 	client := &http.Client{}
 	// create a  http request
-	request, err := http.NewRequest(http.MethodPost, "https://api.deepseek.com/chat/completions", bytes.NewReader(b))
+	request, err := http.NewRequest(http.MethodPost, baseUrl, bytes.NewReader(b))
 	if err != nil {
 		log.Println("[command]error occured when create a request:", err)
 		return "", err
 	}
 
-	api := os.Getenv("DEEPSEEK_API_KEY")
+	api := os.Getenv("API_KEY")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Authorization", "Bearer "+api)
 	request.Header.Set("Accept", "application/json")

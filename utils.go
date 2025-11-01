@@ -1,7 +1,6 @@
 package main
 
 import (
-	"maps"
 	"sort"
 	"strconv"
 	"time"
@@ -11,7 +10,7 @@ func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
 	var items = make([]AlfredItem, 0)
 	for i := 0; i < len(*todos); i++ {
 		item := AlfredItem{}
-		item.Title = "🎯" + (*todos)[i].TaskName + " " + (*todos)[i].Urgent
+		item.Title = "[" + strconv.Itoa((*todos)[i].TaskID) + "] 🎯" + (*todos)[i].TaskName + " " + (*todos)[i].Urgent
 		completed := (*todos)[i].Status == "completed"
 		var prefix string = ""
 		if completed {
@@ -37,7 +36,7 @@ func sortedList(todos *[]TodoItem) []TodoItem {
 	}
 
 	times := make([]int64, 0)
-	for k := range maps.Keys(score) {
+	for k := range score {
 		times = append(times, k)
 	}
 	sort.Slice(times, func(i, j int) bool {

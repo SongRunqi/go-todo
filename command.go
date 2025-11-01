@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"time"
+	"strings"
 )
 
 const cmd = `
@@ -14,7 +14,7 @@ You are a todo helper agent. Your task is to analyze user input and determine th
 Key behaviors:
 1. Identify the user's primary intent from the <ability> tag options
 2. If the user wants to create tasks, treat ';' as a separator for multiple tasks
-3. Return intent as a separate, independent attribute 
+3. Return intent as a separate, independent attribute
 4. Return tasks array only when user wants to create tasks (intent="create")
 
 <ability>
@@ -45,8 +45,8 @@ Return format (remove markdown code fence):
 			"user": "if not mentioned, You is default",
 			"createTime": "use current time",
 			"endTime": "place end time based on the current time",
-			"taskName": "create a nice task name",
-			"taskDesc": "give a clear description",
+			"taskName": "Extract a clear, concise title from the user's input. Use key words from their message without adding creative interpretations.",
+			"taskDesc": "Summarize the user's input directly and factually. Use the exact words and intent from the user's message. Do not add creative interpretations or assumptions. Keep it concise (1-2 sentences) and preserve the original meaning.",
 			"dueDate": "give a clear due date",
 			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left"
 		}
@@ -205,30 +205,53 @@ func GetTask(todos *[]TodoItem, id int) {
 			task := &(*todos)[i]
 			log.Println("[get] found task id:", id, "name:", task.TaskName)
 
-			// Create a filtered version without createTime and taskId
-			filteredTask := struct {
-				EndTime  time.Time `json:"endTime"`
-				User     string    `json:"user"`
-				TaskName string    `json:"taskName"`
-				TaskDesc string    `json:"taskDesc"`
-				Status   string    `json:"status"`
-				DueDate  string    `json:"dueDate"`
-				Urgent   string    `json:"urgent"`
-			}{
-				EndTime:  task.EndTime,
-				User:     task.User,
-				TaskName: task.TaskName,
-				TaskDesc: task.TaskDesc,
-				Status:   task.Status,
-				DueDate:  task.DueDate,
-				Urgent:   task.Urgent,
+			// Format task as markdown
+			// Only show Created and End Time if they have valid values
+			createdTime := ""
+			if !task.CreateTime.IsZero() {
+				createdTime = task.CreateTime.Format("2006-01-02 15:04:05")
+			}
+			endTime := ""
+			if !task.EndTime.IsZero() {
+				endTime = task.EndTime.Format("2006-01-02 15:04:05")
 			}
 
-			data, err := json.MarshalIndent(filteredTask, "", "  ")
-			if err != nil {
-				log.Println("[get] Failed to marshal task:", err)
-			}
-			fmt.Println(string(data))
+			md := fmt.Sprintf(`# %s
+
+- **Task ID:** %d
+- **Status:** %s
+- **User:** %s
+- **Due Date:** %s
+- **Urgency:** %s%s%s
+
+## Description
+
+%s
+
+---
+
+**Tips:** To update this task, copy this markdown and modify the fields above.`,
+				task.TaskName,
+				task.TaskID,
+				task.Status,
+				task.User,
+				task.DueDate,
+				task.Urgent,
+				func() string {
+					if createdTime != "" {
+						return "\n- **Created:** " + createdTime
+					}
+					return ""
+				}(),
+				func() string {
+					if endTime != "" {
+						return "\n- **End Time:** " + endTime
+					}
+					return ""
+				}(),
+				task.TaskDesc)
+
+			fmt.Println(md)
 			return
 		}
 	}
@@ -236,18 +259,151 @@ func GetTask(todos *[]TodoItem, id int) {
 	fmt.Printf("Task with ID %d not found\n", id)
 }
 
-func UpdateTask(todos *[]TodoItem, todoJSON string) {
+func UpdateTask(todos *[]TodoItem, todoMD string) {
 	var updatedTask TodoItem
-	err := json.Unmarshal([]byte(todoJSON), &updatedTask)
-	if err != nil {
-		log.Println("[update] Failed to parse JSON:", err)
-		fmt.Printf("Invalid JSON format: %v\n", err)
-		return
+
+	// Try to parse as markdown first, fall back to JSON
+	log.Println("[update] Input content:", todoMD)
+	if strings.Contains(todoMD, "Task ID:") {
+		// Parse markdown format
+		lines := strings.Split(todoMD, "\n")
+		log.Println("[update] Processing markdown format with", len(lines), "lines")
+		inDescription := false
+
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			log.Println("[update] Processing line:", line)
+			if line == "" {
+				continue
+			}
+
+			// Check if this is the compact format (all fields in one line)
+			if strings.Contains(line, "Task ID:") && strings.Contains(line, "Status:") &&
+				strings.Contains(line, "User:") && strings.Contains(line, "Due Date:") &&
+				strings.Contains(line, "Urgency:") {
+				log.Println("[update] Detected compact format, parsing all fields from one line")
+
+				// Parse all fields from the compact line using a more robust approach
+				// Split the line by spaces and process each field
+				fields := strings.Fields(line)
+				log.Println("[update] Compact format fields:", fields)
+				for i := 0; i < len(fields); i++ {
+					field := fields[i]
+
+					if field == "Task" && i+2 < len(fields) && fields[i+1] == "ID:" {
+						// Task ID: value
+						idStr := strings.Trim(fields[i+2], "*")
+						fmt.Sscanf(idStr, "%d", &updatedTask.TaskID)
+						i += 2
+					} else if field == "Status:" && i+1 < len(fields) {
+						// Status: value
+						updatedTask.Status = strings.Trim(fields[i+1], "*")
+						i += 1
+					} else if field == "User:" && i+1 < len(fields) {
+						// User: value
+						updatedTask.User = strings.Trim(fields[i+1], "*")
+						i += 1
+					} else if field == "Due" && i+2 < len(fields) && fields[i+1] == "Date:" {
+						// Due Date: value
+						updatedTask.DueDate = strings.Trim(fields[i+2], "*")
+						i += 2
+					} else if field == "Urgency:" && i+1 < len(fields) {
+						// Urgency: value
+						updatedTask.Urgent = strings.Trim(fields[i+1], "*")
+						i += 1
+					}
+				}
+
+				log.Println("[update] Compact format parsed - TaskID:", updatedTask.TaskID,
+					"Status:", updatedTask.Status, "User:", updatedTask.User,
+					"DueDate:", updatedTask.DueDate, "Urgent:", updatedTask.Urgent)
+				continue
+			}
+
+			if strings.HasPrefix(line, "# ") && !strings.HasPrefix(line, "##") {
+				updatedTask.TaskName = strings.TrimSpace(line[2:])
+				log.Println("[update] Parsed TaskName:", updatedTask.TaskName)
+			} else if strings.Contains(line, "Task ID:") {
+				// Extract Task ID from list format like "- **Task ID:** 13"
+				parts := strings.Split(line, "Task ID:")
+				if len(parts) > 1 {
+					idStr := strings.TrimSpace(parts[1])
+					// Remove any ** markdown formatting
+					idStr = strings.Trim(idStr, "* ")
+					idStr = strings.TrimSpace(idStr)
+					fmt.Sscanf(idStr, "%d", &updatedTask.TaskID)
+				}
+			} else if strings.Contains(line, "Status:") {
+				// Extract status from list format like "- **Status:** pending"
+				parts := strings.Split(line, "Status:")
+				if len(parts) > 1 {
+					statusStr := strings.TrimSpace(parts[1])
+					// Remove any ** markdown formatting
+					statusStr = strings.Trim(statusStr, "* ")
+					updatedTask.Status = strings.TrimSpace(statusStr)
+					log.Println("[update] Parsed Status:", updatedTask.Status)
+				}
+			} else if strings.Contains(line, "User:") {
+				parts := strings.Split(line, "User:")
+				if len(parts) > 1 {
+					userStr := strings.TrimSpace(parts[1])
+					// Remove any ** markdown formatting
+					userStr = strings.Trim(userStr, "* ")
+					updatedTask.User = strings.TrimSpace(userStr)
+					log.Println("[update] Parsed User:", updatedTask.User)
+				}
+			} else if strings.Contains(line, "Due Date:") {
+				parts := strings.Split(line, "Due Date:")
+				if len(parts) > 1 {
+					dueDateStr := strings.TrimSpace(parts[1])
+					// Remove any ** markdown formatting
+					dueDateStr = strings.Trim(dueDateStr, "* ")
+					updatedTask.DueDate = strings.TrimSpace(dueDateStr)
+				}
+			} else if strings.Contains(line, "Urgency:") {
+				parts := strings.Split(line, "Urgency:")
+				if len(parts) > 1 {
+					urgencyStr := strings.TrimSpace(parts[1])
+					// Remove any ** markdown formatting
+					urgencyStr = strings.Trim(urgencyStr, "* ")
+					updatedTask.Urgent = strings.TrimSpace(urgencyStr)
+				}
+			} else if strings.Contains(line, "Created:") {
+				// Skip created time
+				continue
+			} else if strings.Contains(line, "End Time:") {
+				// Skip end time
+				continue
+			} else if strings.Contains(line, "## Description") || (strings.Contains(line, "Description") && !strings.Contains(line, "##")) {
+				// Start description section (handle both ## Description and just Description)
+				inDescription = true
+				log.Println("[update] Starting description section")
+				continue
+			} else if line == "---" || strings.HasPrefix(line, "Tips:") {
+				// Stop parsing completely at the separator or tips section
+				break
+			} else if inDescription {
+				// This is part of the description
+				if updatedTask.TaskDesc != "" {
+					updatedTask.TaskDesc += "\n"
+				}
+				updatedTask.TaskDesc += line
+				log.Println("[update] Added to description:", line)
+			}
+		}
+	} else {
+		// Fall back to JSON parsing
+		err := json.Unmarshal([]byte(todoMD), &updatedTask)
+		if err != nil {
+			log.Println("[update] Failed to parse JSON:", err)
+			fmt.Printf("Invalid format. Expected markdown or JSON: %v\n", err)
+			return
+		}
 	}
 
 	if updatedTask.TaskID <= 0 {
 		log.Println("[update] taskId is invalid")
-		fmt.Println("Invalid task ID in JSON")
+		fmt.Println("Invalid task ID")
 		return
 	}
 
@@ -293,4 +449,66 @@ func DeleteTask(todos *[]TodoItem, id int) {
 		newTodos = append(newTodos, (*todos)[i])
 	}
 	fileTodoStore.Save(&newTodos, false)
+}
+
+func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int) {
+	if id <= 0 {
+		log.Println("[restore] id is invalid")
+		fmt.Println("Invalid task ID")
+		return
+	}
+
+	// Find the task in backup
+	var taskToRestore *TodoItem
+	var backupIndex int = -1
+	for i := 0; i < len(*backupTodos); i++ {
+		if (*backupTodos)[i].TaskID == id {
+			taskToRestore = &(*backupTodos)[i]
+			backupIndex = i
+			break
+		}
+	}
+
+	if taskToRestore == nil {
+		log.Println("[restore] task not found in backup, id:", id)
+		fmt.Printf("Task with ID %d not found in backup\n", id)
+		return
+	}
+
+	log.Println("[restore] found task id:", id, "name:", taskToRestore.TaskName)
+
+	// Change status back to pending
+	restoredTask := *taskToRestore
+	restoredTask.Status = "pending"
+
+	// Add to active todos
+	*todos = append(*todos, restoredTask)
+
+	// Save updated active todos
+	err := fileTodoStore.Save(todos, false)
+	if err != nil {
+		log.Println("[restore] Failed to save active todos:", err)
+		fmt.Printf("Failed to restore task: %v\n", err)
+		return
+	}
+
+	// Remove from backup
+	newBackupTodos := make([]TodoItem, 0)
+	for i := 0; i < len(*backupTodos); i++ {
+		if i != backupIndex {
+			newBackupTodos = append(newBackupTodos, (*backupTodos)[i])
+		}
+	}
+	*backupTodos = newBackupTodos
+
+	// Save updated backup
+	err = fileTodoStore.Save(backupTodos, true)
+	if err != nil {
+		log.Println("[restore] Failed to save backup:", err)
+		fmt.Printf("Failed to update backup: %v\n", err)
+		return
+	}
+
+	log.Println("[restore] task restored successfully")
+	fmt.Printf("Task %d (%s) restored successfully\n", id, restoredTask.TaskName)
 }
