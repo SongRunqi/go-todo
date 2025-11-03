@@ -7,35 +7,34 @@ import (
 	"os"
 )
 
-const path = "/Users/yitiansong/data/sync/todo.json"
-const backupPath = "/Users/yitiansong/data/sync/todo_back.json"
-
 type FileTodoStore struct {
 	Path       string
 	BackupPath string
 }
 
-func (f *FileTodoStore) Load(backup bool) []TodoItem {
+func (f *FileTodoStore) Load(backup bool) ([]TodoItem, error) {
 	filePath := f.Path
 	if backup {
-		filePath = backupPath
+		filePath = f.BackupPath
 	}
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
 		log.Println("[load] read file err:", err)
+		return make([]TodoItem, 0), fmt.Errorf("failed to read file: %w", err)
 	}
 	var loadingTodos []TodoItem = make([]TodoItem, 0)
 	err = json.Unmarshal(bytes, &loadingTodos)
 	if err != nil {
 		log.Println("[load] parse err", err.Error())
+		return make([]TodoItem, 0), fmt.Errorf("failed to parse JSON: %w", err)
 	}
-	return loadingTodos
+	return loadingTodos, nil
 }
 
 func (f *FileTodoStore) Save(todos *[]TodoItem, backup bool) error {
 	filePath := f.Path
 	if backup {
-		filePath = backupPath
+		filePath = f.BackupPath
 	}
 	data, err := json.MarshalIndent(*todos, "", "  ")
 	if err != nil {
