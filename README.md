@@ -6,6 +6,8 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/SongRunqi/go-todo)](go.mod)
 
+[English](README.md) | [中文](README_zh.md)
+
 A powerful AI-powered todo management CLI application with Alfred integration, built in Go.
 
 ## Features
@@ -38,22 +40,81 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 - **🚀 CI/CD Pipeline**: Automated testing, linting, and multi-platform builds
 - **🛠 Shell Completion**: Auto-completion support for Bash, Zsh, Fish, and PowerShell
 
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Building for Different Platforms](#building-for-different-platforms)
+- [Development](#development)
+- [Testing](#testing)
+
 ## Installation
 
 ### Prerequisites
 
-- Go 1.x or higher
-- DeepSeek API key (or compatible LLM API)
+- **Go 1.21 or higher** - [Download Go](https://golang.org/dl/)
+- **DeepSeek API key** (or compatible LLM API) - [Get API Key](https://platform.deepseek.com/)
 
-### Build from Source
-
+Check your Go version:
 ```bash
-git clone <repository-url>
-cd todo-go
-go build -o todo .
+go version  # Should be 1.21 or higher
 ```
 
-This will create an executable named `todo` in the current directory.
+### Quick Install
+
+```bash
+# Clone the repository
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# Download dependencies
+go mod download
+
+# Build the application
+go build -o todo main.go
+
+# Verify the build
+./todo --help
+```
+
+### Install Globally
+
+To use `todo` from anywhere:
+
+```bash
+# Linux/macOS - copy to /usr/local/bin
+sudo cp todo /usr/local/bin/todo
+
+# Or copy to ~/bin (add ~/bin to PATH if needed)
+mkdir -p ~/bin
+cp todo ~/bin/todo
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# Now use 'todo' from anywhere
+todo list
+```
+
+## Quick Start
+
+```bash
+# 1. Set your API key
+export API_KEY="your-deepseek-api-key-here"
+
+# 2. Create a task using natural language
+./todo "Buy groceries tomorrow evening"
+
+# 3. List all tasks
+./todo list
+
+# 4. Complete a task
+./todo complete 1
+
+# 5. View completed tasks
+./todo back
+```
 
 ## Configuration
 
@@ -62,19 +123,31 @@ This will create an executable named `todo` in the current directory.
 The application uses the following environment variables:
 
 #### Required
-- `DEEPSEEK_API_KEY`: Your DeepSeek API key for LLM functionality
+- `API_KEY`: Your DeepSeek API key for LLM functionality (or `DEEPSEEK_API_KEY`)
 
 #### Optional
 - `LLM_BASE_URL`: Custom LLM API endpoint (defaults to `https://api.deepseek.com/chat/completions`)
   - Use this to switch to other LLM providers (OpenAI, Claude, etc.)
-  - Example: `export LLM_BASE_URL="https://api.openai.com/v1/chat/completions"`
+- `LLM_MODEL`: Model to use (defaults to the provider's default)
+- `LOG_LEVEL`: Logging level - `debug`, `info`, `warn`, `error` (default: `info`)
+- `NO_COLOR`: Set to any value to disable colored output
 
-### Example Configuration
+### Configuration Examples
 
 ```bash
-# Add to your ~/.bashrc or ~/.zshrc
-export DEEPSEEK_API_KEY="your-api-key-here"
-export LLM_BASE_URL="https://api.deepseek.com/chat/completions"  # Optional
+# Basic configuration (add to ~/.bashrc or ~/.zshrc)
+export API_KEY="your-api-key-here"
+
+# Full configuration
+export API_KEY="your-api-key-here"
+export LLM_BASE_URL="https://api.deepseek.com/chat/completions"
+export LLM_MODEL="deepseek-chat"
+export LOG_LEVEL="info"
+
+# Use OpenAI instead
+export API_KEY="your-openai-api-key"
+export LLM_BASE_URL="https://api.openai.com/v1/chat/completions"
+export LLM_MODEL="gpt-4"
 ```
 
 ## Usage
@@ -251,6 +324,68 @@ Remove a task permanently:
 ./todo "delete 1"
 ```
 
+## Building for Different Platforms
+
+### Build for Current Platform
+
+```bash
+# Standard build
+go build -o todo main.go
+
+# Optimized build (smaller binary)
+go build -ldflags="-s -w" -o todo main.go
+```
+
+### Cross-Platform Builds
+
+```bash
+# Linux (amd64)
+GOOS=linux GOARCH=amd64 go build -o todo-linux-amd64 main.go
+
+# Linux (arm64) - for Raspberry Pi, ARM servers
+GOOS=linux GOARCH=arm64 go build -o todo-linux-arm64 main.go
+
+# macOS (Intel)
+GOOS=darwin GOARCH=amd64 go build -o todo-darwin-amd64 main.go
+
+# macOS (Apple Silicon - M1/M2/M3)
+GOOS=darwin GOARCH=arm64 go build -o todo-darwin-arm64 main.go
+
+# Windows (amd64)
+GOOS=windows GOARCH=amd64 go build -o todo-windows-amd64.exe main.go
+```
+
+### Build Script for All Platforms
+
+Create a `build-all.sh` script:
+
+```bash
+#!/bin/bash
+platforms=("linux/amd64" "linux/arm64" "darwin/amd64" "darwin/arm64" "windows/amd64")
+
+for platform in "${platforms[@]}"; do
+    platform_split=(${platform//\// })
+    GOOS=${platform_split[0]}
+    GOARCH=${platform_split[1]}
+    output_name="todo-${GOOS}-${GOARCH}"
+
+    if [ $GOOS = "windows" ]; then
+        output_name+='.exe'
+    fi
+
+    echo "Building $output_name..."
+    env GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-s -w" -o $output_name main.go
+done
+
+echo "All builds completed!"
+```
+
+Run it:
+```bash
+chmod +x build-all.sh
+./build-all.sh
+```
+
 ## AI-Powered Features
 
 ### Intelligent Task Description Generation
@@ -321,40 +456,180 @@ Tasks are stored in JSON files:
 ### Project Structure
 
 ```
-todo-go/
-├── main.go        # Application entry point
-├── types.go       # Data structures and models
-├── command.go     # Business logic and LLM integration
-├── api.go         # HTTP API client for LLM
-├── utils.go       # Alfred conversion utilities
-├── storage.go     # File-based persistence
-├── go.mod         # Go module dependencies
-└── README.md      # This file
+go-todo/
+├── main.go                      # Application entry point
+├── cmd/                         # Command-line interface (Cobra)
+│   ├── root.go                 # Root command and completion
+│   ├── list.go                 # List command
+│   ├── get.go                  # Get command
+│   ├── complete.go             # Complete command
+│   ├── delete.go               # Delete command
+│   ├── update.go               # Update command
+│   └── back.go                 # Backup commands
+├── app/                         # Business logic
+│   ├── command.go              # Core task operations
+│   ├── commands.go             # Command implementations
+│   ├── api.go                  # AI client wrapper
+│   ├── storage.go              # File storage
+│   ├── utils.go                # Utility functions
+│   ├── types.go                # Data models
+│   └── router.go               # Command router
+├── parser/                      # Task parsing
+│   ├── parser.go               # Markdown/JSON parser
+│   └── parser_test.go          # Parser tests (94.6% coverage)
+├── internal/                    # Internal packages
+│   ├── logger/                 # Structured logging (zerolog)
+│   ├── validator/              # Input validation
+│   ├── ai/                     # AI client abstraction
+│   │   ├── client.go          # Interface definition
+│   │   ├── deepseek.go        # DeepSeek implementation
+│   │   └── mock.go            # Mock for testing
+│   ├── storage/                # Storage implementations
+│   │   └── memory.go          # In-memory storage
+│   └── output/                 # Terminal output
+│       ├── color.go           # Colored output
+│       └── spinner.go         # Progress indicators
+├── .github/workflows/           # CI/CD pipeline
+│   └── ci.yml                  # GitHub Actions
+├── .golangci.yml               # Linter configuration
+├── go.mod                      # Go module dependencies
+├── go.sum                      # Dependency checksums
+├── ROADMAP.md                  # Development roadmap
+└── README.md                   # This file
 ```
 
-### Key Functions
+### Technology Stack
 
-- `TransToAlfredItem()`: Converts tasks to Alfred JSON format
-- `DoI()`: Intent detection and command routing
-- `Chat()`: LLM API communication
-- `CreateTask()`: Task creation with ID generation
-- `List()`: Sorted task display
-- `Complete()`: Task completion and archival
-- `RestoreTask()`: Restore completed tasks back to active list
-- `GetTask()`: Retrieve and format task details in Markdown
-- `UpdateTask()`: Update tasks using Markdown or JSON format
+- **CLI Framework**: [Cobra](https://github.com/spf13/cobra) - Modern command-line interface
+- **Logging**: [Zerolog](https://github.com/rs/zerolog) - High-performance structured logging
+- **Colors**: [Fatih Color](https://github.com/fatih/color) - Terminal color output
+- **Spinner**: [Briandowns Spinner](https://github.com/briandowns/spinner) - Progress indicators
+- **AI Provider**: DeepSeek API (configurable for other LLM providers)
+- **Testing**: Go standard testing library with table-driven tests
+- **CI/CD**: GitHub Actions with multi-platform builds
 
-### Building the Project
+### Key Features by Package
+
+**cmd/** - Command-line interface
+- Cobra-based command structure
+- Shell completion generation
+- Natural language fallback
+
+**app/** - Core business logic
+- Task CRUD operations
+- AI intent detection
+- File-based persistence
+
+**parser/** - Task parsing
+- Markdown parser for task updates
+- JSON parser for structured input
+- Auto-format detection
+
+**internal/logger** - Structured logging
+- Configurable log levels
+- Colored console output
+- Error tracking
+
+**internal/validator** - Input validation
+- Task ID validation
+- Field length checks
+- Status and urgency validation
+
+**internal/ai** - AI client abstraction
+- Interface-based design
+- DeepSeek implementation
+- Mock client for testing
+
+**internal/output** - Terminal output
+- Colored success/error messages
+- Progress spinners
+- Actionable error suggestions
+
+## Testing
+
+### Run Tests
 
 ```bash
-# Build with custom output name
-go build -o todo .
+# Run all tests
+go test ./...
 
-# Build for different platforms
-GOOS=darwin GOARCH=amd64 go build -o todo-macos .
-GOOS=linux GOARCH=amd64 go build -o todo-linux .
-GOOS=windows GOARCH=amd64 go build -o todo.exe .
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run tests with race detection
+go test -race ./...
 ```
+
+### Generate Coverage Report
+
+```bash
+# Generate coverage profile
+go test -coverprofile=coverage.out ./...
+
+# View coverage in terminal
+go tool cover -func=coverage.out
+
+# Generate HTML coverage report
+go tool cover -html=coverage.out -o coverage.html
+
+# Open in browser
+open coverage.html  # macOS
+xdg-open coverage.html  # Linux
+```
+
+### Run Specific Tests
+
+```bash
+# Test specific package
+go test ./app/
+go test ./parser/
+
+# Run specific test function
+go test -run TestCreateTask ./app/
+
+# Run tests matching pattern
+go test -run "TestCreate.*" ./app/
+```
+
+### Benchmarks
+
+```bash
+# Run all benchmarks
+go test -bench=. ./...
+
+# Run benchmarks with memory stats
+go test -bench=. -benchmem ./...
+
+# Run specific benchmark
+go test -bench=BenchmarkCreateTask ./app/
+
+# Save benchmark results
+go test -bench=. -benchmem ./... > benchmark.txt
+
+# Compare benchmarks (requires benchstat)
+go install golang.org/x/perf/cmd/benchstat@latest
+benchstat old.txt new.txt
+```
+
+### Current Test Coverage
+
+- **app/**: 73.4% coverage
+- **parser/**: 94.6% coverage
+- **internal/validator/**: 90.2% coverage
+- **internal/storage/**: 90.7% coverage
+- **Overall**: 73%+ coverage
+- **Total Tests**: 99+ test cases
+
+### CI/CD Testing
+
+Tests run automatically on:
+- Every push to main/master
+- Every pull request
+- Multiple Go versions (1.21, 1.22, 1.23)
+- Multiple platforms (Linux, macOS, Windows)
 
 ## Troubleshooting
 
