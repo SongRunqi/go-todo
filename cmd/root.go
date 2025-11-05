@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -78,7 +79,42 @@ Examples:
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
+	// Silence errors in rootCmd so we can handle them ourselves
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
+
 	if err := rootCmd.Execute(); err != nil {
+		// Check if this is an "unknown command" error
+		// If so, treat the entire input as natural language
+		errStr := err.Error()
+		if len(os.Args) > 1 && strings.Contains(errStr, "unknown command") {
+			// Initialize the same way PersistentPreRun does
+			logLevel := os.Getenv("LOG_LEVEL")
+			if logLevel == "" {
+				logLevel = "info"
+			}
+			logger.Init(logLevel)
+
+			config = app.LoadConfig()
+			store = &app.FileTodoStore{
+				Path:       config.TodoPath,
+				BackupPath: config.BackupPath,
+			}
+
+			loadedTodos, loadErr := store.Load(false)
+			if loadErr != nil {
+				fmt.Fprintf(os.Stderr, "Error loading todos: %v\n", loadErr)
+				os.Exit(1)
+			}
+			todos = &loadedTodos
+			currentTime = time.Now()
+
+			// Treat the first argument as natural language input
+			handleNaturalLanguage(os.Args[1:])
+			return
+		}
+
+		// For other errors, print them normally
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
