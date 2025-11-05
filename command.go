@@ -8,6 +8,47 @@ import (
 	"time"
 )
 
+// statusMapping maps common user inputs to system-defined status values
+var statusMapping = map[string]string{
+	// Pending variants
+	"pending":     "pending",
+	"todo":        "pending",
+	"not started": "pending",
+	"open":        "pending",
+	"new":         "pending",
+	"waiting":     "pending",
+	"backlog":     "pending",
+	"in progress": "pending",
+	"doing":       "pending",
+	"working":     "pending",
+	"active":      "pending",
+
+	// Completed variants
+	"completed": "completed",
+	"complete":  "completed",
+	"done":      "completed",
+	"finished":  "completed",
+	"closed":    "completed",
+	"resolved":  "completed",
+	"success":   "completed",
+}
+
+// normalizeStatus converts user-provided status to system-defined status
+// Returns the normalized status, or the original if no mapping exists
+func normalizeStatus(status string) string {
+	// Convert to lowercase for case-insensitive matching
+	normalized := strings.ToLower(strings.TrimSpace(status))
+
+	if mappedStatus, ok := statusMapping[normalized]; ok {
+		log.Printf("[normalize] Normalized status '%s' to '%s'\n", status, mappedStatus)
+		return mappedStatus
+	}
+
+	// If no mapping found, return original (trimmed and lowercased for consistency)
+	log.Printf("[normalize] No mapping found for status '%s', using as-is\n", status)
+	return normalized
+}
+
 const cmd = `
 <System>
 You are a todo helper agent. Your task is to analyze user input and determine their intent along with any tasks they want to create.
@@ -115,42 +156,17 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 		if (*todos)[i].TaskID == id {
 			log.Println("[complete] task id is:", id, "name:", (*todos)[i].TaskName, "desc:", (*todos)[i].TaskDesc)
 
-			// Set the task as completed
-			completedTask := (*todos)[i]
-			completedTask.Status = "completed"
+			// Mark the task as completed
+			(*todos)[i].Status = "completed"
 
-			// Load existing backup todos
-			backupTodos, err := store.Load(true)
-			if err != nil {
-				return fmt.Errorf("failed to load backup: %w", err)
-			}
-
-			// Add completed task to backup
-			backupTodos = append(backupTodos, completedTask)
-
-			// Save completed task to backup file
-			err = store.Save(&backupTodos, true)
-			if err != nil {
-				return fmt.Errorf("failed to save to backup: %w", err)
-			}
-
-			// Remove completed task from original todos
-			newTodos := make([]TodoItem, 0)
-			for j := 0; j < len(*todos); j++ {
-				if j != i { // Skip the completed task
-					newTodos = append(newTodos, (*todos)[j])
-				}
-			}
-			*todos = newTodos
-
-			// Save updated todos (without completed task) to original file
-			err = store.Save(todos, false)
+			// Save updated todos
+			err := store.Save(todos, false)
 			if err != nil {
 				return fmt.Errorf("failed to save updated todos: %w", err)
 			}
 
-			log.Println("[complete] task moved to backup and removed from active todos")
-			fmt.Printf("Task %d completed and archived successfully\n", id)
+			log.Println("[complete] task marked as completed")
+			fmt.Printf("Task %d marked as completed\n", id)
 			return nil
 		}
 	}
@@ -432,6 +448,11 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 		return fmt.Errorf("invalid task ID: %d", updatedTask.TaskID)
 	}
 
+	// Normalize the status if it was provided
+	if updatedTask.Status != "" {
+		updatedTask.Status = normalizeStatus(updatedTask.Status)
+	}
+
 	// Find and update the task
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == updatedTask.TaskID {
@@ -443,6 +464,11 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 			}
 			if updatedTask.EndTime.IsZero() {
 				updatedTask.EndTime = (*todos)[i].EndTime
+			}
+
+			// Preserve Status from original task if not provided in update
+			if updatedTask.Status == "" {
+				updatedTask.Status = (*todos)[i].Status
 			}
 
 			// Update the task in place
@@ -475,26 +501,44 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 		return fmt.Errorf("invalid task ID: %d", id)
 	}
 
-	found := false
+	var deletedTask *TodoItem
 	newTodos := make([]TodoItem, 0)
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == id {
-			found = true
+			deletedTask = &(*todos)[i]
+			log.Println("[delete] task id is:", id, "name:", deletedTask.TaskName)
 			continue
 		}
 		newTodos = append(newTodos, (*todos)[i])
 	}
 
-	if !found {
+	if deletedTask == nil {
 		return fmt.Errorf("task with ID %d not found", id)
 	}
 
-	err := store.Save(&newTodos, false)
+	// Load existing backup todos
+	backupTodos, err := store.Load(true)
+	if err != nil {
+		return fmt.Errorf("failed to load backup: %w", err)
+	}
+
+	// Add deleted task to backup
+	backupTodos = append(backupTodos, *deletedTask)
+
+	// Save deleted task to backup file
+	err = store.Save(&backupTodos, true)
+	if err != nil {
+		return fmt.Errorf("failed to save to backup: %w", err)
+	}
+
+	// Save updated todos (without deleted task) to original file
+	err = store.Save(&newTodos, false)
 	if err != nil {
 		return fmt.Errorf("failed to save after deletion: %w", err)
 	}
 
-	fmt.Printf("Task %d deleted successfully\n", id)
+	log.Println("[delete] task moved to backup")
+	fmt.Printf("Task %d deleted and moved to backup successfully\n", id)
 	return nil
 }
 
