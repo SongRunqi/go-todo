@@ -1,0 +1,98 @@
+{
+  "cmd.root.short": "A simple command-line TODO application",
+  "cmd.root.long": "A simple command-line TODO application that supports natural language input and AI-powered task management.\n\nYou can use natural language to create tasks, or use specific commands for precise control.",
+  "cmd.root.completion.short": "Generate shell completion script",
+  "cmd.root.completion.long": "Generate shell completion script for the specified shell.\n\nThe completion script will be printed to stdout and can be sourced in your shell configuration file.\n\nSupported shells:\n  - bash\n  - zsh\n  - fish\n  - powershell\n\nExamples:\n  # Generate bash completion script and save to file\n  todo completion bash > ~/.todo-completion.bash\n  echo 'source ~/.todo-completion.bash' >> ~/.bashrc\n\n  # Generate zsh completion script\n  todo completion zsh > \"${fpath[1]}/_todo\"\n\n  # Generate fish completion script\n  todo completion fish > ~/.config/fish/completions/todo.fish\n\n  # Generate powershell completion script\n  todo completion powershell > todo.ps1",
+  "cmd.root.error.loading_todos": "Error loading todos: %v\n",
+  "cmd.root.error.general": "Error: %v\n",
+  "cmd.root.error.invalid_task_id": "Error: invalid task ID '%s' (must be a number)\n",
+
+  "cmd.list.short": "List all active todos",
+  "cmd.list.long": "List all active todos in JSON format, compatible with Alfred workflow",
+
+  "cmd.get.short": "Get a specific todo by ID",
+  "cmd.get.long": "Get a specific todo by ID and display it in markdown format",
+
+  "cmd.complete.short": "Mark a todo as completed",
+  "cmd.complete.long": "Mark a todo as completed by its ID",
+
+  "cmd.delete.short": "Delete a todo permanently",
+  "cmd.delete.long": "Delete a todo permanently by its ID",
+
+  "cmd.update.short": "Update a todo",
+  "cmd.update.long": "Update a todo with markdown content from stdin or file",
+  "cmd.update.example": "  # Update a todo by editing markdown\n  todo get 1 | todo update",
+
+  "cmd.back.short": "List completed todos (backlog)",
+  "cmd.back.long": "List all completed todos in JSON format",
+  "cmd.back.get.short": "Get a specific completed todo by ID",
+  "cmd.back.get.long": "Get a specific completed todo by ID and display it in markdown format",
+  "cmd.back.restore.short": "Restore a completed todo to active status",
+  "cmd.back.restore.long": "Restore a completed todo to active status by its ID",
+
+  "output.success": "Success",
+  "output.error": "Error",
+  "output.warning": "Warning",
+  "output.info": "Info",
+  "output.task_created": "Task created",
+  "output.task_completed": "Task completed",
+  "output.task_updated": "Task updated",
+  "output.task_deleted": "Task deleted",
+  "output.task_restored": "Task restored from backlog",
+  "output.processing_ai": "Processing with AI...",
+
+  "validation.task_id_invalid": "task ID must be greater than 0, got: %d",
+  "validation.task_name_empty": "task name cannot be empty",
+  "validation.task_name_too_long": "task name too long (max 200 characters), got: %d",
+  "validation.invalid_status": "invalid status '%s', must be one of: pending, completed",
+  "validation.invalid_urgency": "invalid urgency '%s', must be one of: low, medium, high, urgent",
+  "validation.description_too_long": "task description too long (max 5000 characters), got: %d",
+  "validation.user_name_too_long": "user name too long (max 100 characters), got: %d",
+
+  "field.task_id": "Task ID",
+  "field.task_name": "Task Name",
+  "field.status": "Status",
+  "field.user": "User",
+  "field.due_date": "Due Date",
+  "field.urgency": "Urgency",
+  "field.created": "Created",
+  "field.end_time": "End Time",
+  "field.description": "Description",
+  "field.tips": "Tips",
+
+  "status.pending": "Pending",
+  "status.completed": "Completed",
+
+  "urgency.low": "Low",
+  "urgency.medium": "Medium",
+  "urgency.high": "High",
+  "urgency.urgent": "Urgent",
+
+  "time.expired": "Expired",
+  "time.remaining": "Time remaining: %s",
+  "time.until_deadline": "Until deadline: %s",
+  "time.days": "%d days",
+  "time.hours": "%d hours",
+  "time.minutes": "%d minutes",
+
+  "config.header": "=== Configuration ===",
+  "config.todo_path": "Todo path: %s",
+  "config.backup_path": "Backup path: %s",
+  "config.model": "Model: %s",
+  "config.api_key": "API Key: %s",
+  "config.base_url": "LLM Base URL: %s",
+  "config.footer": "=====================",
+
+  "ai.system_prompt": "You are a professional task management assistant. Your role is to help users manage their tasks through natural language interaction.\n\nYour capabilities:\n1. **Create tasks** - Extract task information from user input and create new tasks\n2. **List tasks** - Display all active tasks to the user\n3. **Complete tasks** - Mark tasks as completed\n4. **Delete tasks** - Remove tasks from the list\n\n**IMPORTANT**: You must respond with VALID JSON ONLY. No markdown, no explanation, no extra text.\n\nResponse format:\n```json\n{\n  \"intent\": \"create|list|complete|delete\",\n  \"task\": {\n    \"id\": 0,\n    \"name\": \"task name\",\n    \"description\": \"detailed description\",\n    \"urgency\": \"low|medium|high|urgent\",\n    \"due_date\": \"2024-01-01\",\n    \"user\": \"username\"\n  }\n}\n```\n\nField extraction rules:\n1. **intent**: Identify user's intention (create/list/complete/delete)\n2. **id**: Extract task ID from input (for complete/delete operations)\n3. **name**: Extract brief task name (required for create)\n4. **description**: Extract detailed description\n5. **urgency**: Infer urgency level from keywords:\n   - \"urgent\", \"ASAP\", \"emergency\" → urgent\n   - \"important\", \"high priority\" → high\n   - \"normal\", \"regular\" → medium\n   - \"low priority\", \"when possible\" → low\n6. **due_date**: Extract date information, convert to YYYY-MM-DD format\n7. **user**: Extract assignee/responsible person\n\nExamples:\n\nInput: \"Create a task to review code, high priority, due tomorrow\"\nOutput:\n```json\n{\n  \"intent\": \"create\",\n  \"task\": {\n    \"name\": \"Review code\",\n    \"description\": \"Review code\",\n    \"urgency\": \"high\",\n    \"due_date\": \"2024-01-15\"\n  }\n}\n```\n\nInput: \"List all tasks\"\nOutput:\n```json\n{\n  \"intent\": \"list\"\n}\n```\n\nRemember: Always respond with VALID JSON only!",
+
+  "error.no_command": "no command provided",
+  "error.task_not_found": "Task not found",
+  "error.api_request_failed": "API request failed",
+  "error.invalid_json": "Invalid JSON response",
+  "error.file_operation": "File operation failed",
+
+  "tip.edit_markdown": "You can edit the above content and pipe it back to 'todo update'",
+  "tip.natural_language": "Try using natural language like: 'Create a task to buy groceries tomorrow'",
+
+  "markdown.template": "**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n\n## %s\n\n%s\n\n---\n\n**%s:** %s"
+}

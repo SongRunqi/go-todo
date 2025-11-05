@@ -1,0 +1,98 @@
+{
+  "cmd.root.short": "一个简单的命令行待办事项应用",
+  "cmd.root.long": "一个简单的命令行待办事项应用，支持自然语言输入和 AI 驱动的任务管理。\n\n您可以使用自然语言创建任务，或使用特定命令进行精确控制。",
+  "cmd.root.completion.short": "生成 shell 自动补全脚本",
+  "cmd.root.completion.long": "为指定的 shell 生成自动补全脚本。\n\n补全脚本将输出到标准输出，可以在您的 shell 配置文件中引用。\n\n支持的 shell：\n  - bash\n  - zsh\n  - fish\n  - powershell\n\n示例：\n  # 生成 bash 补全脚本并保存到文件\n  todo completion bash > ~/.todo-completion.bash\n  echo 'source ~/.todo-completion.bash' >> ~/.bashrc\n\n  # 生成 zsh 补全脚本\n  todo completion zsh > \"${fpath[1]}/_todo\"\n\n  # 生成 fish 补全脚本\n  todo completion fish > ~/.config/fish/completions/todo.fish\n\n  # 生成 powershell 补全脚本\n  todo completion powershell > todo.ps1",
+  "cmd.root.error.loading_todos": "加载待办事项时出错：%v\n",
+  "cmd.root.error.general": "错误：%v\n",
+  "cmd.root.error.invalid_task_id": "错误：无效的任务 ID '%s'（必须是数字）\n",
+
+  "cmd.list.short": "列出所有活动待办事项",
+  "cmd.list.long": "以 JSON 格式列出所有活动待办事项，兼容 Alfred 工作流",
+
+  "cmd.get.short": "通过 ID 获取特定待办事项",
+  "cmd.get.long": "通过 ID 获取特定待办事项并以 Markdown 格式显示",
+
+  "cmd.complete.short": "将待办事项标记为已完成",
+  "cmd.complete.long": "通过 ID 将待办事项标记为已完成",
+
+  "cmd.delete.short": "永久删除待办事项",
+  "cmd.delete.long": "通过 ID 永久删除待办事项",
+
+  "cmd.update.short": "更新待办事项",
+  "cmd.update.long": "使用来自标准输入或文件的 Markdown 内容更新待办事项",
+  "cmd.update.example": "  # 通过编辑 Markdown 更新待办事项\n  todo get 1 | todo update",
+
+  "cmd.back.short": "列出已完成的待办事项（待办记录）",
+  "cmd.back.long": "以 JSON 格式列出所有已完成的待办事项",
+  "cmd.back.get.short": "通过 ID 获取特定的已完成待办事项",
+  "cmd.back.get.long": "通过 ID 获取特定的已完成待办事项并以 Markdown 格式显示",
+  "cmd.back.restore.short": "将已完成的待办事项恢复为活动状态",
+  "cmd.back.restore.long": "通过 ID 将已完成的待办事项恢复为活动状态",
+
+  "output.success": "成功",
+  "output.error": "错误",
+  "output.warning": "警告",
+  "output.info": "信息",
+  "output.task_created": "任务已创建",
+  "output.task_completed": "任务已完成",
+  "output.task_updated": "任务已更新",
+  "output.task_deleted": "任务已删除",
+  "output.task_restored": "任务已从待办记录中恢复",
+  "output.processing_ai": "正在使用 AI 处理...",
+
+  "validation.task_id_invalid": "任务 ID 必须大于 0，当前值：%d",
+  "validation.task_name_empty": "任务名称不能为空",
+  "validation.task_name_too_long": "任务名称过长（最多 200 个字符），当前长度：%d",
+  "validation.invalid_status": "无效的状态 '%s'，必须是以下之一：pending、completed",
+  "validation.invalid_urgency": "无效的紧急程度 '%s'，必须是以下之一：low、medium、high、urgent",
+  "validation.description_too_long": "任务描述过长（最多 5000 个字符），当前长度：%d",
+  "validation.user_name_too_long": "用户名过长（最多 100 个字符），当前长度：%d",
+
+  "field.task_id": "任务 ID",
+  "field.task_name": "任务名称",
+  "field.status": "状态",
+  "field.user": "用户",
+  "field.due_date": "截止日期",
+  "field.urgency": "紧急程度",
+  "field.created": "创建时间",
+  "field.end_time": "结束时间",
+  "field.description": "描述",
+  "field.tips": "提示",
+
+  "status.pending": "待完成",
+  "status.completed": "已完成",
+
+  "urgency.low": "低",
+  "urgency.medium": "中",
+  "urgency.high": "高",
+  "urgency.urgent": "紧急",
+
+  "time.expired": "已截止",
+  "time.remaining": "还有 %s",
+  "time.until_deadline": "截止 %s",
+  "time.days": "%d 天",
+  "time.hours": "%d 小时",
+  "time.minutes": "%d 分钟",
+
+  "config.header": "=== 配置信息 ===",
+  "config.todo_path": "待办事项路径：%s",
+  "config.backup_path": "备份路径：%s",
+  "config.model": "模型：%s",
+  "config.api_key": "API 密钥：%s",
+  "config.base_url": "LLM 基础 URL：%s",
+  "config.footer": "=====================",
+
+  "ai.system_prompt": "你是一个专业的任务管理助手。你的角色是通过自然语言交互帮助用户管理他们的任务。\n\n你的能力：\n1. **创建任务** - 从用户输入中提取任务信息并创建新任务\n2. **列出任务** - 向用户显示所有活动任务\n3. **完成任务** - 将任务标记为已完成\n4. **删除任务** - 从列表中删除任务\n\n**重要**：你必须只响应有效的 JSON。不要使用 Markdown，不要解释，不要添加额外的文本。\n\n响应格式：\n```json\n{\n  \"intent\": \"create|list|complete|delete\",\n  \"task\": {\n    \"id\": 0,\n    \"name\": \"任务名称\",\n    \"description\": \"详细描述\",\n    \"urgency\": \"low|medium|high|urgent\",\n    \"due_date\": \"2024-01-01\",\n    \"user\": \"用户名\"\n  }\n}\n```\n\n字段提取规则：\n1. **intent**：识别用户的意图（create/list/complete/delete）\n2. **id**：从输入中提取任务 ID（用于 complete/delete 操作）\n3. **name**：提取简短的任务名称（创建时必需）\n4. **description**：提取详细描述\n5. **urgency**：从关键词推断紧急程度：\n   - \"紧急\"、\"马上\"、\"立刻\" → urgent\n   - \"重要\"、\"高优先级\" → high\n   - \"正常\"、\"一般\" → medium\n   - \"低优先级\"、\"有空时\" → low\n6. **due_date**：提取日期信息，转换为 YYYY-MM-DD 格式\n7. **user**：提取负责人/指派人\n\n示例：\n\n输入：\"创建一个任务来审查代码，高优先级，明天截止\"\n输出：\n```json\n{\n  \"intent\": \"create\",\n  \"task\": {\n    \"name\": \"审查代码\",\n    \"description\": \"审查代码\",\n    \"urgency\": \"high\",\n    \"due_date\": \"2024-01-15\"\n  }\n}\n```\n\n输入：\"列出所有任务\"\n输出：\n```json\n{\n  \"intent\": \"list\"\n}\n```\n\n记住：始终只响应有效的 JSON！",
+
+  "error.no_command": "未提供命令",
+  "error.task_not_found": "未找到任务",
+  "error.api_request_failed": "API 请求失败",
+  "error.invalid_json": "无效的 JSON 响应",
+  "error.file_operation": "文件操作失败",
+
+  "tip.edit_markdown": "您可以编辑上述内容并将其传递回 'todo update'",
+  "tip.natural_language": "尝试使用自然语言，例如：'创建一个任务明天买菜'",
+
+  "markdown.template": "**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n\n## %s\n\n%s\n\n---\n\n**%s：** %s"
+}

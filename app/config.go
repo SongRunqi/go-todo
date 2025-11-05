@@ -12,6 +12,7 @@ type Config struct {
 	APIKey     string
 	Model      string
 	LLMBaseURL string
+	Language   string
 }
 
 // LoadConfig loads configuration from environment variables with fallback defaults
@@ -43,12 +44,16 @@ func LoadConfig() Config {
 	model := getEnvOrDefault("model", "deepseek-chat")
 	llmBaseURL := getEnvOrDefault("LLM_BASE_URL", "https://api.deepseek.com/chat/completions")
 
+	// Load language configuration (defaults to auto-detect from environment)
+	language := getEnvOrDefault("TODO_LANG", "")
+
 	return Config{
 		TodoPath:   todoPath,
 		BackupPath: backupPath,
 		APIKey:     apiKey,
 		Model:      model,
 		LLMBaseURL: llmBaseURL,
+		Language:   language,
 	}
 }
 
