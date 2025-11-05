@@ -26,6 +26,10 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 - **Multiple Output Formats**: JSON (Alfred-compatible) and Markdown formats
 
 ### Developer Features
+- **🌍 Internationalization (i18n)**: Full support for English and Chinese
+  - Auto-detects system language from environment
+  - Switch language via `TODO_LANG` environment variable
+  - All user-facing text fully translated
 - **🎨 Colored Output**: Beautiful terminal output with color-coded messages
   - ✓ Green for success messages
   - ✗ Red for errors with actionable suggestions
@@ -126,6 +130,9 @@ The application uses the following environment variables:
 - `API_KEY`: Your DeepSeek API key for LLM functionality (or `DEEPSEEK_API_KEY`)
 
 #### Optional
+- `TODO_LANG`: Set language for interface (defaults to auto-detect from system)
+  - Supported values: `en` (English), `zh` (Chinese)
+  - Auto-detects from `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, or `LANG` if not set
 - `LLM_BASE_URL`: Custom LLM API endpoint (defaults to `https://api.deepseek.com/chat/completions`)
   - Use this to switch to other LLM providers (OpenAI, Claude, etc.)
 - `LLM_MODEL`: Model to use (defaults to the provider's default)
@@ -143,12 +150,60 @@ export API_KEY="your-api-key-here"
 export LLM_BASE_URL="https://api.deepseek.com/chat/completions"
 export LLM_MODEL="deepseek-chat"
 export LOG_LEVEL="info"
+export TODO_LANG="en"  # or "zh" for Chinese
 
 # Use OpenAI instead
 export API_KEY="your-openai-api-key"
 export LLM_BASE_URL="https://api.openai.com/v1/chat/completions"
 export LLM_MODEL="gpt-4"
 ```
+
+## Internationalization (i18n)
+
+Todo-Go supports multiple languages for all user-facing text.
+
+### Supported Languages
+
+- **English (en)**: Default language
+- **中文 (zh)**: Simplified Chinese
+
+### Setting Language
+
+```bash
+# Use English (default)
+./todo list
+
+# Use Chinese
+TODO_LANG=zh ./todo list
+
+# Or set permanently in your shell configuration
+export TODO_LANG=zh  # Add to ~/.bashrc or ~/.zshrc
+./todo list
+```
+
+### Auto-Detection
+
+If `TODO_LANG` is not set, the application will auto-detect your system language from the following environment variables (in order):
+1. `LANGUAGE`
+2. `LC_ALL`
+3. `LC_MESSAGES`
+4. `LANG`
+
+### Examples
+
+**English:**
+```bash
+$ ./todo --help
+A simple command-line TODO application that supports natural language input and AI-powered task management.
+```
+
+**Chinese:**
+```bash
+$ TODO_LANG=zh ./todo --help
+一个简单的命令行待办事项应用，支持自然语言输入和 AI 驱动的任务管理。
+```
+
+All command help, error messages, validation messages, and output text will be displayed in your selected language.
 
 ## Usage
 
@@ -441,15 +496,29 @@ Tasks are stored in JSON files:
 
 ## Recent Updates
 
-### Version 1.2.0 (Latest)
+### Version 1.3.0 (Latest)
 
-1. **Backup Management Commands**:
-   - `back get <id>`: View completed task details from backup
-   - `back restore <id>`: Restore completed tasks back to active list
-2. **Markdown Output for Tasks**: `get` command now outputs tasks in clean Markdown format
-3. **Task ID in Alfred Items**: Alfred titles now begin with `[TaskID]` for easy reference
-4. **Enhanced AI Descriptions**: Improved LLM prompt to generate detailed, meaningful task descriptions with full context
-5. **Configurable LLM Endpoint**: Added `LLM_BASE_URL` environment variable support for flexible API provider configuration
+1. **Internationalization (i18n) Support**:
+   - Full support for English and Chinese languages
+   - Auto-detects system language or use `TODO_LANG` environment variable
+   - All user-facing text fully translated (commands, messages, errors, etc.)
+
+2. **CI/CD Pipeline**:
+   - GitHub Actions automated testing
+   - Multi-platform builds (Linux, macOS, Windows)
+   - Linting and formatting checks
+   - Coverage reporting integration
+
+3. **UX Improvements**:
+   - Colored terminal output with status indicators
+   - Progress spinners for AI operations
+   - Error messages with actionable suggestions
+   - Shell completion support (Bash, Zsh, Fish, PowerShell)
+
+4. **Performance Optimizations**:
+   - Comprehensive benchmark suite
+   - Optimized build flags
+   - Performance baseline metrics
 
 ## Development
 
@@ -478,6 +547,11 @@ go-todo/
 │   ├── parser.go               # Markdown/JSON parser
 │   └── parser_test.go          # Parser tests (94.6% coverage)
 ├── internal/                    # Internal packages
+│   ├── i18n/                   # Internationalization
+│   │   ├── i18n.go            # i18n package with embedded translations
+│   │   └── translations/      # Translation files
+│   │       ├── en.json        # English translations
+│   │       └── zh.json        # Chinese translations
 │   ├── logger/                 # Structured logging (zerolog)
 │   ├── validator/              # Input validation
 │   ├── ai/                     # AI client abstraction
