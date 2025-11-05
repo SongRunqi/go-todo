@@ -57,6 +57,33 @@ export LLM_BASE_URL="https://api.deepseek.com/chat/completions"  # Optional
 
 ## Usage
 
+### Command Structure
+
+Todo-Go now uses a modern CLI framework (Cobra) with clear command structure:
+
+```bash
+todo [command] [arguments] [flags]
+```
+
+**Available Commands:**
+- `list` / `ls` - List all active todos
+- `get <id>` - Get detailed information about a task
+- `complete <id>` - Mark a task as completed
+- `delete <id>` - Delete a task permanently
+- `update <content>` - Update a task with Markdown or JSON
+- `back` - List completed tasks
+- `back get <id>` - View a completed task
+- `back restore <id>` - Restore a completed task
+- `help` - Get help about any command
+- `completion` - Generate shell completion scripts
+
+**Global Flags:**
+- `--config` - Specify config file location
+- `--verbose` / `-v` - Enable verbose output
+- `--help` / `-h` - Show help for any command
+
+**Natural Language (AI):** If you don't use a specific command, your input is treated as natural language and processed by AI.
+
 All commands use the `./todo` executable (or `todo` if installed globally).
 
 ### Create Tasks
