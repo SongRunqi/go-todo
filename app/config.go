@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 )
@@ -44,8 +45,15 @@ func LoadConfig() Config {
 	model := getEnvOrDefault("model", "deepseek-chat")
 	llmBaseURL := getEnvOrDefault("LLM_BASE_URL", "https://api.deepseek.com/chat/completions")
 
-	// Load language configuration (defaults to auto-detect from environment)
-	language := getEnvOrDefault("TODO_LANG", "")
+	// Load language configuration
+	// Priority: 1. Environment variable 2. Config file 3. Auto-detect
+	language := os.Getenv("TODO_LANG")
+	if language == "" {
+		// Try to load from config file
+		if fileConfig := loadConfigFile(homeDir); fileConfig != nil {
+			language = fileConfig.Language
+		}
+	}
 
 	return Config{
 		TodoPath:   todoPath,
@@ -55,6 +63,30 @@ func LoadConfig() Config {
 		LLMBaseURL: llmBaseURL,
 		Language:   language,
 	}
+}
+
+// loadConfigFile loads configuration from the config.json file
+func loadConfigFile(homeDir string) *fileConfig {
+	configFile := filepath.Join(homeDir, ".todo", "config.json")
+
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		// Config file doesn't exist or can't be read - this is fine
+		return nil
+	}
+
+	var cfg fileConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		// Invalid JSON - this is fine, just ignore
+		return nil
+	}
+
+	return &cfg
+}
+
+// fileConfig represents the structure of the config.json file
+type fileConfig struct {
+	Language string `json:"language"`
 }
 
 // getEnvOrDefault returns the value of an environment variable or a default value

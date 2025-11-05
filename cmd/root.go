@@ -143,8 +143,13 @@ func Execute() {
 
 func init() {
 	// Initialize i18n early for command descriptions
-	// Use language from TODO_LANG environment variable or auto-detect
+	// Priority: 1. TODO_LANG env var 2. Config file 3. Auto-detect
 	lang := os.Getenv("TODO_LANG")
+	if lang == "" {
+		// Try to load language from config file
+		cfg := app.LoadConfig()
+		lang = cfg.Language
+	}
 	if err := i18n.Init(lang); err != nil {
 		// Silently fall back to English if i18n fails during init
 		// This is acceptable since init() can't easily report errors
@@ -194,6 +199,23 @@ func init() {
 					case "restore":
 						sc.Short = i18n.T("cmd.back.restore.short")
 						sc.Long = i18n.T("cmd.back.restore.long")
+					}
+				}
+			case "lang":
+				c.Short = i18n.T("cmd.lang.short")
+				c.Long = i18n.T("cmd.lang.long")
+				// Set lang subcommands
+				for _, sc := range c.Commands() {
+					switch sc.Name() {
+					case "list":
+						sc.Short = i18n.T("cmd.lang.list.short")
+						sc.Long = i18n.T("cmd.lang.list.long")
+					case "set":
+						sc.Short = i18n.T("cmd.lang.set.short")
+						sc.Long = i18n.T("cmd.lang.set.long")
+					case "current":
+						sc.Short = i18n.T("cmd.lang.current.short")
+						sc.Long = i18n.T("cmd.lang.current.long")
 					}
 				}
 			}

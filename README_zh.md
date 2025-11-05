@@ -169,6 +169,28 @@ Todo-Go 支持多种语言，所有用户界面文本均可翻译。
 
 ### 设置语言
 
+您可以使用 `lang` 命令设置语言偏好（会持久保存），或使用环境变量进行临时更改。
+
+#### 使用 lang 命令（推荐）
+
+```bash
+# 列出可用语言（Alfred 兼容的 JSON 格式）
+./todo lang list
+
+# 设置语言为中文（保存到配置文件）
+./todo lang set zh
+
+# 设置语言为英文
+./todo lang set en
+
+# 查看当前语言
+./todo lang current
+```
+
+语言偏好将保存到 `~/.todo/config.json` 并在所有后续命令中保持有效。
+
+#### 使用环境变量（临时）
+
 ```bash
 # 使用中文（默认，如果系统语言是中文）
 ./todo list
@@ -180,6 +202,8 @@ TODO_LANG=en ./todo list
 export TODO_LANG=zh  # 添加到 ~/.bashrc 或 ~/.zshrc
 ./todo list
 ```
+
+**注意**：环境变量 `TODO_LANG` 优先于配置文件设置。
 
 ### 自动检测
 
@@ -378,6 +402,24 @@ AI 将自动：
 ```bash
 ./todo delete 1
 ```
+
+### 语言管理
+
+管理应用程序的语言设置：
+
+```bash
+# 列出可用语言（Alfred 兼容的 JSON 格式）
+./todo lang list
+
+# 设置首选语言
+./todo lang set en   # 英文
+./todo lang set zh   # 中文
+
+# 显示当前语言
+./todo lang current
+```
+
+语言偏好将保存到 `~/.todo/config.json` 并在所有命令中保持有效。更多详情请参阅[国际化](#国际化-i18n)部分。
 
 ## 跨平台构建
 

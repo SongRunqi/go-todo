@@ -169,6 +169,28 @@ Todo-Go supports multiple languages for all user-facing text.
 
 ### Setting Language
 
+You can set the language using the `lang` command, which persists your preference, or use environment variables for temporary changes.
+
+#### Using the lang command (Recommended)
+
+```bash
+# List available languages (Alfred-compatible JSON format)
+./todo lang list
+
+# Set language to Chinese (persists to config file)
+./todo lang set zh
+
+# Set language to English
+./todo lang set en
+
+# Check current language
+./todo lang current
+```
+
+The language preference is saved to `~/.todo/config.json` and will persist across all future commands.
+
+#### Using environment variables (Temporary)
+
 ```bash
 # Use English (default)
 ./todo list
@@ -180,6 +202,8 @@ TODO_LANG=zh ./todo list
 export TODO_LANG=zh  # Add to ~/.bashrc or ~/.zshrc
 ./todo list
 ```
+
+**Note**: Environment variable `TODO_LANG` takes priority over the config file setting.
 
 ### Auto-Detection
 
@@ -378,6 +402,24 @@ Remove a task permanently:
 ```bash
 ./todo "delete 1"
 ```
+
+### Language Management
+
+Manage language settings for the application:
+
+```bash
+# List available languages (Alfred-compatible JSON)
+./todo lang list
+
+# Set preferred language
+./todo lang set en   # English
+./todo lang set zh   # Chinese
+
+# Show current language
+./todo lang current
+```
+
+The language preference is saved to `~/.todo/config.json` and persists across all commands. See the [Internationalization](#internationalization-i18n) section for more details.
 
 ## Building for Different Platforms
 
