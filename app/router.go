@@ -2,9 +2,10 @@ package app
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
+
+	"github.com/SongRunqi/go-todo/internal/logger"
 )
 
 // Context holds the execution context for commands
@@ -58,7 +59,7 @@ func (r *Router) Route(ctx *Context) error {
 	}
 
 	userInput := ctx.Args[1]
-	log.Println("[router] user input:", userInput)
+	logger.Debugf("Router received user input: %s", userInput)
 
 	// Try to match exact commands first
 	if cmd, ok := r.commands[userInput]; ok {

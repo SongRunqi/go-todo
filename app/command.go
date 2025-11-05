@@ -3,9 +3,10 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/SongRunqi/go-todo/parser"
+	"github.com/SongRunqi/go-todo/internal/logger"
+	"github.com/SongRunqi/go-todo/internal/validator"
 )
 
 const cmd = `
@@ -64,12 +65,11 @@ func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) error {
 	removedata := removeJsonTag(todoStr)
 	err := json.Unmarshal([]byte(removedata), &intentResponse)
 	if err != nil {
-		log.Println("error parsing intent response:", err)
+		logger.ErrorWithErr(err, "Failed to parse intent response")
 		return fmt.Errorf("failed to parse intent response: %w", err)
 	}
 
-	log.Println("Intent:", intentResponse.Intent)
-	log.Println("Number of tasks:", len(intentResponse.Tasks))
+	logger.Infof("Intent: %s, Number of tasks: %d", intentResponse.Intent, len(intentResponse.Tasks))
 
 	switch intentResponse.Intent {
 	case "create":
@@ -105,7 +105,7 @@ func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) error {
 			}
 		}
 	default:
-		log.Println("Unknown intent:", intentResponse.Intent)
+		logger.Warnf("Unknown intent: %s", intentResponse.Intent)
 		return fmt.Errorf("unknown intent: %s", intentResponse.Intent)
 	}
 	return nil
@@ -113,13 +113,13 @@ func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) error {
 
 func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 	id := todo.TaskID
-	if id <= 0 {
-		return fmt.Errorf("invalid task ID: %d", id)
+	if err := validator.ValidateTaskID(id); err != nil {
+		return err
 	}
 
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == id {
-			log.Println("[complete] task id is:", id, "name:", (*todos)[i].TaskName, "desc:", (*todos)[i].TaskDesc)
+			logger.Debugf("Completing task ID %d: %s - %s", id, (*todos)[i].TaskName, (*todos)[i].TaskDesc)
 
 			// Set the task as completed
 			completedTask := (*todos)[i]
@@ -155,7 +155,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 				return fmt.Errorf("failed to save updated todos: %w", err)
 			}
 
-			log.Println("[complete] task moved to backup and removed from active todos")
+			logger.Debug("Task moved to backup and removed from active todos")
 			fmt.Printf("Task %d completed and archived successfully\n", id)
 			return nil
 		}
@@ -164,6 +164,29 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 }
 
 func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
+	// Validate task fields
+	if err := validator.ValidateTaskName(todo.TaskName); err != nil {
+		return err
+	}
+	if err := validator.ValidateStatus("pending"); err != nil {
+		return err
+	}
+	if todo.Urgent != "" {
+		if err := validator.ValidateUrgency(todo.Urgent); err != nil {
+			return err
+		}
+	}
+	if todo.TaskDesc != "" {
+		if err := validator.ValidateDescription(todo.TaskDesc); err != nil {
+			return err
+		}
+	}
+	if todo.User != "" {
+		if err := validator.ValidateUser(todo.User); err != nil {
+			return err
+		}
+	}
+
 	// Generate a unique TaskID
 	id := GetLastId(todos)
 	// Set the Status field to "pending"
@@ -204,14 +227,14 @@ func List(todos *[]TodoItem) error {
 }
 
 func GetTask(todos *[]TodoItem, id int) error {
-	if id <= 0 {
-		return fmt.Errorf("invalid task ID: %d", id)
+	if err := validator.ValidateTaskID(id); err != nil {
+		return err
 	}
 
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == id {
 			task := &(*todos)[i]
-			log.Println("[get] found task id:", id, "name:", task.TaskName)
+			logger.Debugf("Found task ID %d: %s", id, task.TaskName)
 
 			// Format task as markdown
 			// Only show Created and End Time if they have valid values
@@ -269,7 +292,7 @@ func GetTask(todos *[]TodoItem, id int) error {
 }
 
 func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
-	log.Println("[update] Input content:", todoMD)
+	logger.Debugf("Updating task with content: %s", todoMD)
 
 	// Parse the input using the parser package
 	parsedTask, err := parser.Parse(todoMD)
@@ -290,14 +313,38 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 		Urgent:     parsedTask.Urgent,
 	}
 
-	if updatedTask.TaskID <= 0 {
-		return fmt.Errorf("invalid task ID: %d", updatedTask.TaskID)
+	// Validate task ID
+	if err := validator.ValidateTaskID(updatedTask.TaskID); err != nil {
+		return err
+	}
+
+	// Validate other fields
+	if err := validator.ValidateTaskName(updatedTask.TaskName); err != nil {
+		return err
+	}
+	if err := validator.ValidateStatus(updatedTask.Status); err != nil {
+		return err
+	}
+	if updatedTask.Urgent != "" {
+		if err := validator.ValidateUrgency(updatedTask.Urgent); err != nil {
+			return err
+		}
+	}
+	if updatedTask.TaskDesc != "" {
+		if err := validator.ValidateDescription(updatedTask.TaskDesc); err != nil {
+			return err
+		}
+	}
+	if updatedTask.User != "" {
+		if err := validator.ValidateUser(updatedTask.User); err != nil {
+			return err
+		}
 	}
 
 	// Find and update the task
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == updatedTask.TaskID {
-			log.Println("[update] updating task id:", updatedTask.TaskID, "name:", updatedTask.TaskName)
+			logger.Debugf("Updating task ID %d: %s", updatedTask.TaskID, updatedTask.TaskName)
 
 			// Preserve CreateTime and EndTime from original task if not provided
 			if updatedTask.CreateTime.IsZero() {
@@ -316,13 +363,13 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 				return fmt.Errorf("failed to save task: %w", err)
 			}
 
-			log.Println("[update] task updated and saved")
+			logger.Debug("Task updated and saved successfully")
 			fmt.Printf("Task %d updated successfully\n", updatedTask.TaskID)
 
 			// Return the updated task as JSON
 			data, err := json.MarshalIndent(&updatedTask, "", "  ")
 			if err != nil {
-				log.Println("[update] Failed to marshal updated task:", err)
+				logger.ErrorWithErr(err, "Failed to marshal updated task")
 			} else {
 				fmt.Println(string(data))
 			}
@@ -333,8 +380,8 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 }
 
 func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
-	if id <= 0 {
-		return fmt.Errorf("invalid task ID: %d", id)
+	if err := validator.ValidateTaskID(id); err != nil {
+		return err
 	}
 
 	found := false
@@ -361,8 +408,8 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 }
 
 func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int, store *FileTodoStore) error {
-	if id <= 0 {
-		return fmt.Errorf("invalid task ID: %d", id)
+	if err := validator.ValidateTaskID(id); err != nil {
+		return err
 	}
 
 	// Find the task in backup
@@ -380,7 +427,7 @@ func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int, store *File
 		return fmt.Errorf("task with ID %d not found in backup", id)
 	}
 
-	log.Println("[restore] found task id:", id, "name:", taskToRestore.TaskName)
+	logger.Debugf("Found task to restore - ID %d: %s", id, taskToRestore.TaskName)
 
 	// Change status back to pending
 	restoredTask := *taskToRestore
@@ -410,7 +457,7 @@ func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int, store *File
 		return fmt.Errorf("failed to update backup: %w", err)
 	}
 
-	log.Println("[restore] task restored successfully")
+	logger.Debug("Task restored successfully")
 	fmt.Printf("Task %d (%s) restored successfully\n", id, restoredTask.TaskName)
 	return nil
 }

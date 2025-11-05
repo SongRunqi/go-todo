@@ -2,9 +2,10 @@ package app
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
+
+	"github.com/SongRunqi/go-todo/internal/logger"
 )
 
 // maskAPIKey masks the API key for logging
@@ -19,24 +20,27 @@ func maskAPIKey(key string) string {
 }
 
 func main() {
+	// Initialize logger
+	logger.Init("info")
+
 	// Load configuration
 	config := LoadConfig()
 
 	// Log all configuration
-	log.Println("=== Configuration ===")
-	log.Printf("[config] Todo path: %s", config.TodoPath)
-	log.Printf("[config] Backup path: %s", config.BackupPath)
-	log.Printf("[config] Model: %s", config.Model)
-	log.Printf("[config] API Key: %s", maskAPIKey(config.APIKey))
-	log.Printf("[config] LLM Base URL: %s", config.LLMBaseURL)
-	log.Println("=====================")
+	logger.Info("=== Configuration ===")
+	logger.Infof("Todo path: %s", config.TodoPath)
+	logger.Infof("Backup path: %s", config.BackupPath)
+	logger.Infof("Model: %s", config.Model)
+	logger.Infof("API Key: %s", maskAPIKey(config.APIKey))
+	logger.Infof("LLM Base URL: %s", config.LLMBaseURL)
+	logger.Info("=====================")
 
 	store := &FileTodoStore{Path: config.TodoPath, BackupPath: config.BackupPath}
 
 	// Load todos
 	todos, err := store.Load(false)
 	if err != nil {
-		log.Fatalf("Failed to load todos: %v", err)
+		logger.Fatalf("Failed to load todos: %v", err)
 	}
 
 	// Create execution context

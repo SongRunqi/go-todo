@@ -3,10 +3,11 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/SongRunqi/go-todo/internal/logger"
 )
 
 // ListCommand lists all active todos
@@ -150,7 +151,7 @@ func (c *AICommand) Execute(ctx *Context) error {
 	loadedTodos := string(loadedbytes)
 
 	contextStr := "current time is" + nowStr + " and today is " + weekday + ". user input: " + ctx.Args[1] + ", current todos: " + loadedTodos
-	log.Println("[ai] context:", contextStr)
+	logger.Debugf("AI context: %s", contextStr)
 
 	req := OpenAIRequest{
 		Model: ctx.Config.Model,

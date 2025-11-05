@@ -3,8 +3,9 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
+
+	"github.com/SongRunqi/go-todo/internal/logger"
 )
 
 type FileTodoStore struct {
@@ -19,13 +20,13 @@ func (f *FileTodoStore) Load(backup bool) ([]TodoItem, error) {
 	}
 	bytes, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Println("[load] read file err:", err)
+		logger.ErrorWithErr(err, "Failed to read file")
 		return make([]TodoItem, 0), fmt.Errorf("failed to read file: %w", err)
 	}
 	var loadingTodos []TodoItem = make([]TodoItem, 0)
 	err = json.Unmarshal(bytes, &loadingTodos)
 	if err != nil {
-		log.Println("[load] parse err", err.Error())
+		logger.ErrorWithErr(err, "Failed to parse JSON")
 		return make([]TodoItem, 0), fmt.Errorf("failed to parse JSON: %w", err)
 	}
 	return loadingTodos, nil
@@ -46,6 +47,6 @@ func (f *FileTodoStore) Save(todos *[]TodoItem, backup bool) error {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
-	log.Println("[save] Successfully saved todos to file")
+	logger.Debug("Successfully saved todos to file")
 	return nil
 }

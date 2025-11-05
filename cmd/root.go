@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/SongRunqi/go-todo/app"
+	"github.com/SongRunqi/go-todo/internal/logger"
 )
 
 var (
@@ -39,6 +40,13 @@ Examples:
   todo get 1
   todo complete 1`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Initialize logger
+		logLevel := os.Getenv("LOG_LEVEL")
+		if logLevel == "" {
+			logLevel = "info"
+		}
+		logger.Init(logLevel)
+
 		// Initialize configuration
 		config = app.LoadConfig()
 
