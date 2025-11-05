@@ -58,14 +58,14 @@ Note: Only include "tasks" array when intent is "create". For other intents, omi
 
 `
 
-func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) {
+func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) error {
 
 	var intentResponse IntentResponse
 	removedata := removeJsonTag(todoStr)
 	err := json.Unmarshal([]byte(removedata), &intentResponse)
 	if err != nil {
 		log.Println("error parsing intent response:", err)
-		return
+		return fmt.Errorf("failed to parse intent response: %w", err)
 	}
 
 	log.Println("Intent:", intentResponse.Intent)
@@ -76,33 +76,39 @@ func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) {
 		// Handle multiple tasks separated by semicolons
 		for i := range intentResponse.Tasks {
 			task := &intentResponse.Tasks[i]
-			CreateTask(todos, task)
+			if err := CreateTask(todos, task); err != nil {
+				return fmt.Errorf("failed to create task: %w", err)
+			}
 			fmt.Printf("Task created: %s\n", task.TaskName)
 		}
 		// Save all tasks at once after creating them
 		err := store.Save(todos, false)
 		if err != nil {
-			log.Println("[create] Failed to save todos batch:", err)
+			return fmt.Errorf("failed to save todos batch: %w", err)
 		}
 	case "list":
-		List(todos)
+		if err := List(todos); err != nil {
+			return fmt.Errorf("failed to list todos: %w", err)
+		}
 	case "complete":
 		// For complete and delete, we might need additional logic
 		// to extract task ID from the user input or tasks array
 		if len(intentResponse.Tasks) > 0 {
 			if err := Complete(todos, &intentResponse.Tasks[0], store); err != nil {
-				fmt.Printf("Error: %v\n", err)
+				return fmt.Errorf("failed to complete task: %w", err)
 			}
 		}
 	case "delete":
 		if len(intentResponse.Tasks) > 0 {
 			if err := DeleteTask(todos, intentResponse.Tasks[0].TaskID, store); err != nil {
-				fmt.Printf("Error: %v\n", err)
+				return fmt.Errorf("failed to delete task: %w", err)
 			}
 		}
 	default:
 		log.Println("Unknown intent:", intentResponse.Intent)
+		return fmt.Errorf("unknown intent: %s", intentResponse.Intent)
 	}
+	return nil
 }
 
 func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
@@ -157,7 +163,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 	return fmt.Errorf("task with ID %d not found", id)
 }
 
-func CreateTask(todos *[]TodoItem, todo *TodoItem) {
+func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
 	// Generate a unique TaskID
 	id := GetLastId(todos)
 	// Set the Status field to "pending"
@@ -165,6 +171,7 @@ func CreateTask(todos *[]TodoItem, todo *TodoItem) {
 	todo.Status = "pending"
 	// Add the new todo to the todos slice (but don't save yet)
 	*todos = append(*todos, *todo)
+	return nil
 }
 
 func GetLastId(todos *[]TodoItem) int {
@@ -184,15 +191,16 @@ func GetLastId(todos *[]TodoItem) int {
 	return maxID + 1
 }
 
-func List(todos *[]TodoItem) {
+func List(todos *[]TodoItem) error {
 	newTodos := sortedList(todos)
 	alfredItems := TransToAlfredItem(&newTodos)
 	response := AlfredResponse{Items: *alfredItems}
 	data, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
-		log.Println("[list] Failed to marshal todos:", err)
+		return fmt.Errorf("failed to marshal todos: %w", err)
 	}
 	fmt.Println(string(data))
+	return nil
 }
 
 func GetTask(todos *[]TodoItem, id int) error {

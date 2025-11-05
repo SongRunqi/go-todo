@@ -13,8 +13,7 @@ import (
 type ListCommand struct{}
 
 func (c *ListCommand) Execute(ctx *Context) error {
-	List(ctx.Todos)
-	return nil
+	return List(ctx.Todos)
 }
 
 // BackCommand lists all backup/completed todos
@@ -25,8 +24,7 @@ func (c *BackCommand) Execute(ctx *Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to load backup todos: %w", err)
 	}
-	List(&backupTodos)
-	return nil
+	return List(&backupTodos)
 }
 
 // BackGetCommand gets a task from backup
@@ -145,7 +143,10 @@ func (c *AICommand) Execute(ctx *Context) error {
 	nowStr := ctx.CurrentTime.Format(time.RFC3339)
 	weekday := ctx.CurrentTime.Weekday().String()
 
-	loadedbytes, _ := json.Marshal(*ctx.Todos)
+	loadedbytes, err := json.Marshal(*ctx.Todos)
+	if err != nil {
+		return fmt.Errorf("failed to marshal todos: %w", err)
+	}
 	loadedTodos := string(loadedbytes)
 
 	contextStr := "current time is" + nowStr + " and today is " + weekday + ". user input: " + ctx.Args[1] + ", current todos: " + loadedTodos
@@ -164,6 +165,5 @@ func (c *AICommand) Execute(ctx *Context) error {
 		return fmt.Errorf("AI request failed: %w", err)
 	}
 
-	DoI(warpIntend, ctx.Todos, ctx.Store)
-	return nil
+	return DoI(warpIntend, ctx.Todos, ctx.Store)
 }
