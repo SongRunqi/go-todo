@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
-	"time"
+
+	"github.com/SongRunqi/go-todo/parser"
 )
 
 const cmd = `
@@ -269,171 +269,25 @@ func GetTask(todos *[]TodoItem, id int) error {
 }
 
 func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
-	var updatedTask TodoItem
-
-	// Try to parse as markdown first, fall back to JSON
 	log.Println("[update] Input content:", todoMD)
-	if strings.Contains(todoMD, "Task ID:") {
-		// Parse markdown format
-		lines := strings.Split(todoMD, "\n")
-		log.Println("[update] Processing markdown format with", len(lines), "lines")
-		inDescription := false
 
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			log.Println("[update] Processing line:", line)
-			if line == "" {
-				continue
-			}
+	// Parse the input using the parser package
+	parsedTask, err := parser.Parse(todoMD)
+	if err != nil {
+		return fmt.Errorf("failed to parse task update: %w", err)
+	}
 
-			// Check if this is the compact format (all fields in one line)
-			if strings.Contains(line, "Task ID:") && strings.Contains(line, "Status:") &&
-				strings.Contains(line, "User:") && strings.Contains(line, "Due Date:") &&
-				strings.Contains(line, "Urgency:") {
-				log.Println("[update] Detected compact format, parsing all fields from one line")
-
-				// Parse all fields from the compact line using a more robust approach
-				// Split the line by spaces and process each field
-				fields := strings.Fields(line)
-				log.Println("[update] Compact format fields:", fields)
-				for i := 0; i < len(fields); i++ {
-					field := fields[i]
-
-					if field == "Task" && i+2 < len(fields) && fields[i+1] == "ID:" {
-						// Task ID: value
-						idStr := strings.Trim(fields[i+2], "*")
-						fmt.Sscanf(idStr, "%d", &updatedTask.TaskID)
-						i += 2
-					} else if field == "Status:" && i+1 < len(fields) {
-						// Status: value
-						updatedTask.Status = strings.Trim(fields[i+1], "*")
-						i += 1
-					} else if field == "User:" && i+1 < len(fields) {
-						// User: value
-						updatedTask.User = strings.Trim(fields[i+1], "*")
-						i += 1
-					} else if field == "Due" && i+2 < len(fields) && fields[i+1] == "Date:" {
-						// Due Date: value
-						updatedTask.DueDate = strings.Trim(fields[i+2], "*")
-						i += 2
-					} else if field == "Urgency:" && i+1 < len(fields) {
-						// Urgency: value
-						updatedTask.Urgent = strings.Trim(fields[i+1], "*")
-						i += 1
-					}
-				}
-
-				log.Println("[update] Compact format parsed - TaskID:", updatedTask.TaskID,
-					"Status:", updatedTask.Status, "User:", updatedTask.User,
-					"DueDate:", updatedTask.DueDate, "Urgent:", updatedTask.Urgent)
-				continue
-			}
-
-			if strings.HasPrefix(line, "# ") && !strings.HasPrefix(line, "##") {
-				updatedTask.TaskName = strings.TrimSpace(line[2:])
-				log.Println("[update] Parsed TaskName:", updatedTask.TaskName)
-			} else if strings.Contains(line, "Task ID:") {
-				// Extract Task ID from list format like "- **Task ID:** 13"
-				parts := strings.Split(line, "Task ID:")
-				if len(parts) > 1 {
-					idStr := strings.TrimSpace(parts[1])
-					// Remove any ** markdown formatting
-					idStr = strings.Trim(idStr, "* ")
-					idStr = strings.TrimSpace(idStr)
-					fmt.Sscanf(idStr, "%d", &updatedTask.TaskID)
-				}
-			} else if strings.Contains(line, "Task Name:") {
-				// Extract Task Name from list format like "- **Task Name:** Task Title"
-				parts := strings.Split(line, "Task Name:")
-				if len(parts) > 1 {
-					taskNameStr := strings.TrimSpace(parts[1])
-					// Remove any ** markdown formatting
-					taskNameStr = strings.Trim(taskNameStr, "* ")
-					updatedTask.TaskName = strings.TrimSpace(taskNameStr)
-					log.Println("[update] Parsed TaskName:", updatedTask.TaskName)
-				}
-			} else if strings.Contains(line, "Status:") {
-				// Extract status from list format like "- **Status:** pending"
-				parts := strings.Split(line, "Status:")
-				if len(parts) > 1 {
-					statusStr := strings.TrimSpace(parts[1])
-					// Remove any ** markdown formatting
-					statusStr = strings.Trim(statusStr, "* ")
-					updatedTask.Status = strings.TrimSpace(statusStr)
-					log.Println("[update] Parsed Status:", updatedTask.Status)
-				}
-			} else if strings.Contains(line, "User:") {
-				parts := strings.Split(line, "User:")
-				if len(parts) > 1 {
-					userStr := strings.TrimSpace(parts[1])
-					// Remove any ** markdown formatting
-					userStr = strings.Trim(userStr, "* ")
-					updatedTask.User = strings.TrimSpace(userStr)
-					log.Println("[update] Parsed User:", updatedTask.User)
-				}
-			} else if strings.Contains(line, "Due Date:") {
-				parts := strings.Split(line, "Due Date:")
-				if len(parts) > 1 {
-					dueDateStr := strings.TrimSpace(parts[1])
-					// Remove any ** markdown formatting
-					dueDateStr = strings.Trim(dueDateStr, "* ")
-					updatedTask.DueDate = strings.TrimSpace(dueDateStr)
-				}
-			} else if strings.Contains(line, "Urgency:") {
-				parts := strings.Split(line, "Urgency:")
-				if len(parts) > 1 {
-					urgencyStr := strings.TrimSpace(parts[1])
-					// Remove any ** markdown formatting
-					urgencyStr = strings.Trim(urgencyStr, "* ")
-					updatedTask.Urgent = strings.TrimSpace(urgencyStr)
-				}
-			} else if strings.Contains(line, "Created:") {
-				// Parse created time
-				parts := strings.Split(line, "Created:")
-				if len(parts) > 1 {
-					createdStr := strings.TrimSpace(parts[1])
-					createdStr = strings.Trim(createdStr, "* ")
-					// Try to parse the time
-					if t, err := time.Parse("2006-01-02 15:04:05", createdStr); err == nil {
-						updatedTask.CreateTime = t
-						log.Println("[update] Parsed CreateTime:", updatedTask.CreateTime)
-					}
-				}
-			} else if strings.Contains(line, "End Time:") {
-				// Parse end time
-				parts := strings.Split(line, "End Time:")
-				if len(parts) > 1 {
-					endTimeStr := strings.TrimSpace(parts[1])
-					endTimeStr = strings.Trim(endTimeStr, "* ")
-					// Try to parse the time
-					if t, err := time.Parse("2006-01-02 15:04:05", endTimeStr); err == nil {
-						updatedTask.EndTime = t
-						log.Println("[update] Parsed EndTime:", updatedTask.EndTime)
-					}
-				}
-			} else if strings.Contains(line, "## Description") || (strings.Contains(line, "Description") && !strings.Contains(line, "##")) {
-				// Start description section (handle both ## Description and just Description)
-				inDescription = true
-				log.Println("[update] Starting description section")
-				continue
-			} else if line == "---" || strings.HasPrefix(line, "Tips:") {
-				// Stop parsing completely at the separator or tips section
-				break
-			} else if inDescription {
-				// This is part of the description
-				if updatedTask.TaskDesc != "" {
-					updatedTask.TaskDesc += "\n"
-				}
-				updatedTask.TaskDesc += line
-				log.Println("[update] Added to description:", line)
-			}
-		}
-	} else {
-		// Fall back to JSON parsing
-		err := json.Unmarshal([]byte(todoMD), &updatedTask)
-		if err != nil {
-			return fmt.Errorf("invalid format, expected markdown or JSON: %w", err)
-		}
+	// Convert parser.TodoItem to main.TodoItem
+	updatedTask := TodoItem{
+		TaskID:     parsedTask.TaskID,
+		CreateTime: parsedTask.CreateTime,
+		EndTime:    parsedTask.EndTime,
+		User:       parsedTask.User,
+		TaskName:   parsedTask.TaskName,
+		TaskDesc:   parsedTask.TaskDesc,
+		Status:     parsedTask.Status,
+		DueDate:    parsedTask.DueDate,
+		Urgent:     parsedTask.Urgent,
 	}
 
 	if updatedTask.TaskID <= 0 {
@@ -445,7 +299,7 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 		if (*todos)[i].TaskID == updatedTask.TaskID {
 			log.Println("[update] updating task id:", updatedTask.TaskID, "name:", updatedTask.TaskName)
 
-			// Preserve CreateTime and EndTime from original task
+			// Preserve CreateTime and EndTime from original task if not provided
 			if updatedTask.CreateTime.IsZero() {
 				updatedTask.CreateTime = (*todos)[i].CreateTime
 			}
