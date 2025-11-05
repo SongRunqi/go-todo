@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/SongRunqi/go-todo/internal/logger"
+	"github.com/SongRunqi/go-todo/internal/output"
 )
 
 // ListCommand lists all active todos
@@ -161,8 +162,18 @@ func (c *AICommand) Execute(ctx *Context) error {
 		},
 	}
 
+	// Show spinner during AI request
+	spin := output.NewAISpinner()
+	spin.Start()
+
 	warpIntend, err := Chat(req)
+	spin.Stop()
+
 	if err != nil {
+		output.PrintErrorWithSuggestion(
+			fmt.Sprintf("AI request failed: %v", err),
+			"Check your API_KEY environment variable and network connection",
+		)
 		return fmt.Errorf("AI request failed: %w", err)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/SongRunqi/go-todo/parser"
 	"github.com/SongRunqi/go-todo/internal/logger"
 	"github.com/SongRunqi/go-todo/internal/validator"
+	"github.com/SongRunqi/go-todo/internal/output"
 )
 
 const cmd = `
@@ -79,7 +80,7 @@ func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) error {
 			if err := CreateTask(todos, task); err != nil {
 				return fmt.Errorf("failed to create task: %w", err)
 			}
-			fmt.Printf("Task created: %s\n", task.TaskName)
+			output.PrintTaskCreated(task.TaskID, task.TaskName)
 		}
 		// Save all tasks at once after creating them
 		err := store.Save(todos, false)
@@ -119,6 +120,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == id {
+			taskName := (*todos)[i].TaskName
 			logger.Debugf("Completing task ID %d: %s - %s", id, (*todos)[i].TaskName, (*todos)[i].TaskDesc)
 
 			// Set the task as completed
@@ -156,7 +158,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 			}
 
 			logger.Debug("Task moved to backup and removed from active todos")
-			fmt.Printf("Task %d completed and archived successfully\n", id)
+			output.PrintTaskCompleted(id, taskName)
 			return nil
 		}
 	}
@@ -364,7 +366,7 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 			}
 
 			logger.Debug("Task updated and saved successfully")
-			fmt.Printf("Task %d updated successfully\n", updatedTask.TaskID)
+			output.PrintTaskUpdated(updatedTask.TaskID, updatedTask.TaskName)
 
 			// Return the updated task as JSON
 			data, err := json.MarshalIndent(&updatedTask, "", "  ")
@@ -403,7 +405,7 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 		return fmt.Errorf("failed to save after deletion: %w", err)
 	}
 
-	fmt.Printf("Task %d deleted successfully\n", id)
+	output.PrintTaskDeleted(id)
 	return nil
 }
 
@@ -458,6 +460,6 @@ func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int, store *File
 	}
 
 	logger.Debug("Task restored successfully")
-	fmt.Printf("Task %d (%s) restored successfully\n", id, restoredTask.TaskName)
+	output.PrintTaskRestored(id, restoredTask.TaskName)
 	return nil
 }

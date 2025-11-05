@@ -85,9 +85,64 @@ func Execute() {
 }
 
 func init() {
+	// Add completion command
+	rootCmd.AddCommand(completionCmd)
+
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.todo/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+}
+
+// completionCmd represents the completion command
+var completionCmd = &cobra.Command{
+	Use:   "completion [bash|zsh|fish|powershell]",
+	Short: "Generate shell completion scripts",
+	Long: `Generate shell completion scripts for todo.
+
+To load completions:
+
+Bash:
+  $ source <(todo completion bash)
+  # To load completions for each session, execute once:
+  # Linux:
+  $ todo completion bash > /etc/bash_completion.d/todo
+  # macOS:
+  $ todo completion bash > $(brew --prefix)/etc/bash_completion.d/todo
+
+Zsh:
+  # If shell completion is not already enabled in your environment,
+  # you will need to enable it. You can execute the following once:
+  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
+  # To load completions for each session, execute once:
+  $ todo completion zsh > "${fpath[1]}/_todo"
+  # You will need to start a new shell for this setup to take effect.
+
+Fish:
+  $ todo completion fish | source
+  # To load completions for each session, execute once:
+  $ todo completion fish > ~/.config/fish/completions/todo.fish
+
+PowerShell:
+  PS> todo completion powershell | Out-String | Invoke-Expression
+  # To load completions for every new session, run:
+  PS> todo completion powershell > todo.ps1
+  # and source this file from your PowerShell profile.
+`,
+	DisableFlagsInUseLine: true,
+	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
+	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+	Run: func(cmd *cobra.Command, args []string) {
+		switch args[0] {
+		case "bash":
+			cmd.Root().GenBashCompletion(os.Stdout)
+		case "zsh":
+			cmd.Root().GenZshCompletion(os.Stdout)
+		case "fish":
+			cmd.Root().GenFishCompletion(os.Stdout, true)
+		case "powershell":
+			cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+		}
+	},
 }
 
 // handleNaturalLanguage processes natural language input using AI

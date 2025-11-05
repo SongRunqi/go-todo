@@ -1,9 +1,16 @@
 # Todo-Go
 
+[![CI](https://github.com/SongRunqi/go-todo/actions/workflows/ci.yml/badge.svg)](https://github.com/SongRunqi/go-todo/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/SongRunqi/go-todo)](https://goreportcard.com/report/github.com/SongRunqi/go-todo)
+[![codecov](https://codecov.io/gh/SongRunqi/go-todo/branch/main/graph/badge.svg)](https://codecov.io/gh/SongRunqi/go-todo)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/SongRunqi/go-todo)](go.mod)
+
 A powerful AI-powered todo management CLI application with Alfred integration, built in Go.
 
 ## Features
 
+### Core Features
 - **AI-Powered Task Management**: Uses LLM (DeepSeek by default) to intelligently parse natural language input
 - **Alfred Integration**: Seamless integration with Alfred workflow for macOS users
 - **Smart Task Parsing**: Automatically extracts task details, deadlines, and urgency from natural language
@@ -15,6 +22,21 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 - **Priority Management**: Automatic urgency calculation based on deadlines
 - **Time-Based Sorting**: Tasks sorted by due date with countdown timers
 - **Multiple Output Formats**: JSON (Alfred-compatible) and Markdown formats
+
+### Developer Features
+- **🎨 Colored Output**: Beautiful terminal output with color-coded messages
+  - ✓ Green for success messages
+  - ✗ Red for errors with actionable suggestions
+  - ⚠ Yellow for warnings
+  - ℹ Cyan for informational messages
+- **⚡ Performance Optimized**: Comprehensive benchmarks and optimizations
+- **🔍 Input Validation**: Robust validation layer with clear error messages
+- **🧪 Well Tested**: 73%+ test coverage with unit and integration tests
+- **📊 Structured Logging**: Zerolog-based logging with configurable levels
+- **🔌 Pluggable AI Client**: Abstract AI interface supporting multiple LLM providers
+- **💾 Memory Storage**: In-memory storage option for testing
+- **🚀 CI/CD Pipeline**: Automated testing, linting, and multi-platform builds
+- **🛠 Shell Completion**: Auto-completion support for Bash, Zsh, Fish, and PowerShell
 
 ## Installation
 
@@ -82,7 +104,29 @@ todo [command] [arguments] [flags]
 - `--verbose` / `-v` - Enable verbose output
 - `--help` / `-h` - Show help for any command
 
+**Environment Variables:**
+- `LOG_LEVEL` - Set logging level (debug, info, warn, error) - defaults to "info"
+- `NO_COLOR` - Disable colored output when set
+
 **Natural Language (AI):** If you don't use a specific command, your input is treated as natural language and processed by AI.
+
+### Shell Completion
+
+Generate shell completion scripts for faster command entry:
+
+```bash
+# Bash
+todo completion bash > /etc/bash_completion.d/todo
+
+# Zsh
+todo completion zsh > "${fpath[1]}/_todo"
+
+# Fish
+todo completion fish > ~/.config/fish/completions/todo.fish
+
+# PowerShell
+todo completion powershell > todo.ps1
+```
 
 All commands use the `./todo` executable (or `todo` if installed globally).
 
