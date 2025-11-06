@@ -114,5 +114,18 @@
   "tip.edit_markdown": "You can edit the above content and pipe it back to 'todo update'",
   "tip.natural_language": "Try using natural language like: 'Create a task to buy groceries tomorrow'",
 
-  "markdown.template": "**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n\n## %s\n\n%s\n\n---\n\n**%s:** %s"
+  "markdown.template": "**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n**%s:** %s\n\n## %s\n\n%s\n\n---\n\n**%s:** %s",
+
+  "upgrade.checking": "Checking for updates...",
+  "upgrade.check_failed": "Failed to check for updates: %s",
+  "upgrade.up_to_date": "Already running the latest version: %s",
+  "upgrade.new_version_available": "New version available: %s -> %s",
+  "upgrade.release_notes": "Release Notes",
+  "upgrade.confirm_prompt": "Do you want to upgrade from",
+  "upgrade.continue": "Continue",
+  "upgrade.cancelled": "Upgrade cancelled",
+  "upgrade.downloading": "Downloading and installing update...",
+  "upgrade.failed": "Upgrade failed: %s",
+  "upgrade.success": "Successfully upgraded to %s",
+  "upgrade.restart_required": "Please restart the application to use the new version"
 }

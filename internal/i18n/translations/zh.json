@@ -114,5 +114,18 @@
   "tip.edit_markdown": "您可以编辑上述内容并将其传递回 'todo update'",
   "tip.natural_language": "尝试使用自然语言，例如：'创建一个任务明天买菜'",
 
-  "markdown.template": "**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n\n## %s\n\n%s\n\n---\n\n**%s：** %s"
+  "markdown.template": "**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n**%s：** %s\n\n## %s\n\n%s\n\n---\n\n**%s：** %s",
+
+  "upgrade.checking": "正在检查更新...",
+  "upgrade.check_failed": "检查更新失败：%s",
+  "upgrade.up_to_date": "已经是最新版本：%s",
+  "upgrade.new_version_available": "发现新版本：%s -> %s",
+  "upgrade.release_notes": "版本说明",
+  "upgrade.confirm_prompt": "是否要从",
+  "upgrade.continue": "继续",
+  "upgrade.cancelled": "升级已取消",
+  "upgrade.downloading": "正在下载并安装更新...",
+  "upgrade.failed": "升级失败：%s",
+  "upgrade.success": "成功升级到 %s",
+  "upgrade.restart_required": "请重启应用程序以使用新版本"
 }

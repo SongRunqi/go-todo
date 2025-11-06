@@ -6,8 +6,16 @@ BINARY_NAME=todo
 # Installation directory
 INSTALL_DIR=$(HOME)/.local/bin
 
-# Build flags
-LDFLAGS=-ldflags="-s -w"
+# Version information
+VERSION ?= dev
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+
+# Build flags with version information
+LDFLAGS=-ldflags="-s -w \
+	-X github.com/SongRunqi/go-todo/internal/version.Version=$(VERSION) \
+	-X github.com/SongRunqi/go-todo/internal/version.GitCommit=$(GIT_COMMIT) \
+	-X github.com/SongRunqi/go-todo/internal/version.BuildDate=$(BUILD_DATE)"
 
 # Default target
 .DEFAULT_GOAL := help
@@ -81,6 +89,5 @@ build-all: ## Build for all platforms
 	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o dist/$(BINARY_NAME)-windows-amd64.exe main.go
 	@echo "✓ Built for all platforms in ./dist/"
 
-version: ## Show version information
-	@echo "Todo-Go v1.3.0"
-	@echo "Go version: $$(go version)"
+version: build ## Show version information
+	@./$(BINARY_NAME) version
