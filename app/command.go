@@ -52,7 +52,27 @@ Return format (remove markdown code fence):
 			"taskId": -1,
 			"user": "if not mentioned, You is default",
 			"createTime": "use current time",
-			"endTime": "IMPORTANT: For meetings/events with specific time, use the START time of the meeting, NOT the end time. This ensures user gets reminded BEFORE the meeting starts. For regular tasks, use the deadline/due time.",
+			"endTime": "CRITICAL - Use START time for EVENTS, deadline time for TASKS:
+
+			Use START time for these EVENT types (time-sensitive, must attend at specific time):
+			- Meetings (会议): '3pm meeting' -> endTime=3pm START time
+			- Classes/Training (课程/培训): '2pm training session' -> endTime=2pm START time
+			- Appointments (预约): 'doctor appointment at 10am' -> endTime=10am
+			- Interviews (面试): 'job interview at 9am' -> endTime=9am
+			- Transportation (交通): 'flight departs 8am', 'train at 3pm' -> use departure time
+			- Entertainment (娱乐): 'movie at 7pm', 'concert at 8pm' -> use start time
+			- Exams (考试): 'exam starts at 2pm' -> endTime=2pm
+			- Social events (社交): 'dinner at 6pm', 'party at 8pm' -> use start time
+			- Live events (直播): 'webinar starts 3pm' -> endTime=3pm
+			- Pick up/Drop off (接送): 'pick up kids at 4pm' -> endTime=4pm
+
+			Use DEADLINE time for TASK types (flexible, can complete anytime before deadline):
+			- Reports/Documents: 'submit report by Friday' -> use Friday as deadline
+			- Projects: 'finish project by month end' -> use deadline
+			- General todos: 'buy groceries' -> estimate reasonable deadline
+
+			Key rule: If it has a specific time range (e.g., '3pm-5pm'), it's an EVENT -> use START time (3pm).
+			If it only mentions 'by/before date', it's a TASK -> use deadline.",
 			"taskName": "Extract a clear, concise title from the user's input. Use key words from their message without adding creative interpretations.",
 			"taskDesc": "Summarize the user's input directly and factually. Use the exact words and intent from the user's message. Do not add creative interpretations or assumptions. Keep it concise (1-2 sentences) and preserve the original meaning.",
 			"dueDate": "give a clear due date",
@@ -64,9 +84,22 @@ Return format (remove markdown code fence):
 Note: Only include "tasks" array when intent is "create". For other intents, omit the tasks field or return empty array.
 
 Examples:
-- Input: "明天下午3点到5点开会" -> Create ONE task with endTime=tomorrow 3pm (meeting start time)
-- Input: "买牛奶，面包，鸡蛋" -> Create ONE task (commas are part of the description, not separators)
-- Input: "买牛奶; 写报告" -> Create TWO tasks (semicolon is the separator)
+EVENT types (use START time):
+- "明天下午3点到5点开会" -> endTime=tomorrow 3pm (meeting START)
+- "周三上午10点医生预约" -> endTime=Wed 10am (appointment time)
+- "下午2点培训课程" -> endTime=today 2pm (class START)
+- "明天早上9点面试" -> endTime=tomorrow 9am (interview time)
+- "晚上7点看电影" -> endTime=today 7pm (movie START)
+- "下午4点接孩子放学" -> endTime=today 4pm (pickup time)
+
+TASK types (use DEADLINE):
+- "周五前提交报告" -> endTime=Friday end of day (deadline)
+- "买牛奶，面包，鸡蛋" -> ONE task, estimate reasonable deadline
+- "月底前完成项目" -> endTime=end of month (deadline)
+
+Separator examples:
+- "买牛奶，面包，鸡蛋" -> ONE task (commas are content)
+- "买牛奶; 写报告; 开会" -> THREE tasks (semicolon separates)
 
 `
 
