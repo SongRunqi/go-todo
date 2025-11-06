@@ -29,6 +29,34 @@ func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
 }
 
 func sortedList(todos *[]TodoItem) []TodoItem {
+	// Separate completed and non-completed tasks
+	completedTasks := make([]TodoItem, 0)
+	activeTasks := make([]TodoItem, 0)
+
+	for _, task := range *todos {
+		if task.Status == "completed" {
+			completedTasks = append(completedTasks, task)
+		} else {
+			activeTasks = append(activeTasks, task)
+		}
+	}
+
+	// Sort active tasks by end time
+	sortedActive := sortTasksByTime(&activeTasks)
+
+	// Sort completed tasks by end time (for consistency)
+	sortedCompleted := sortTasksByTime(&completedTasks)
+
+	// Combine: active tasks first, then completed tasks
+	result := make([]TodoItem, 0)
+	result = append(result, sortedActive...)
+	result = append(result, sortedCompleted...)
+
+	return result
+}
+
+// sortTasksByTime sorts tasks by their end time
+func sortTasksByTime(todos *[]TodoItem) []TodoItem {
 	// Use map[int64][]int to handle multiple tasks with the same end time
 	score := make(map[int64][]int)
 	now := time.Now().Unix()

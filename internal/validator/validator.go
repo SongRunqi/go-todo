@@ -30,14 +30,57 @@ func ValidateTaskName(name string) error {
 // ValidateStatus validates that status is one of the allowed values
 func ValidateStatus(status string) error {
 	validStatuses := map[string]bool{
-		"pending":   true,
-		"completed": true,
+		"pending":     true,
+		"completed":   true,
+		"in_progress": true,
+		"deleted":     true,
 	}
 
 	if !validStatuses[status] {
 		return fmt.Errorf(i18n.T("validation.invalid_status"), status)
 	}
 	return nil
+}
+
+// NormalizeStatus maps common status terms (Chinese/English) to system-defined statuses
+func NormalizeStatus(status string) string {
+	statusMap := map[string]string{
+		// English variations
+		"pending":     "pending",
+		"todo":        "pending",
+		"待处理":        "pending",
+		"待办":         "pending",
+
+		// In progress variations
+		"in_progress": "in_progress",
+		"in progress": "in_progress",
+		"ing":         "in_progress",
+		"进行中":        "in_progress",
+		"正在进行中":      "in_progress",
+		"doing":       "in_progress",
+
+		// Completed variations
+		"completed":   "completed",
+		"done":        "completed",
+		"finished":    "completed",
+		"已完成":        "completed",
+		"完成":         "completed",
+
+		// Deleted
+		"deleted":     "deleted",
+		"已删除":        "deleted",
+	}
+
+	// Convert to lowercase for case-insensitive matching
+	normalizedInput := strings.ToLower(strings.TrimSpace(status))
+
+	// Check if there's a direct mapping
+	if mapped, ok := statusMap[normalizedInput]; ok {
+		return mapped
+	}
+
+	// If no mapping found, return original status
+	return status
 }
 
 // ValidateUrgency validates that urgency is one of the allowed values
