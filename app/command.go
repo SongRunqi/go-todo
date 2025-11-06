@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/SongRunqi/go-todo/parser"
@@ -571,53 +572,45 @@ func CompactTasks(store *FileTodoStore, period string) error {
 		return fmt.Errorf("failed to load backup: %w", err)
 	}
 
-	// Filter completed and deleted tasks
-	completedTasks := make([]TodoItem, 0)
-	deletedTasks := make([]TodoItem, 0)
+	// Group tasks by period
+	type PeriodTasks struct {
+		Tasks      []TodoItem
+		PeriodKey  string
+		StartTime  time.Time
+		EndTime    time.Time
+	}
 
-	for _, task := range backupTodos {
-		if task.Status == "completed" {
-			completedTasks = append(completedTasks, task)
-		} else if task.Status == "deleted" {
-			deletedTasks = append(deletedTasks, task)
+	tasksByPeriod := make(map[string]*PeriodTasks)
+	tasksToRemove := make(map[int]bool) // Track task indices to remove
+
+	// Group completed and deleted tasks by period
+	for i, task := range backupTodos {
+		if task.Status != "completed" && task.Status != "deleted" {
+			continue
+		}
+
+		periodKey := getPeriodKey(task.EndTime, period)
+		if _, exists := tasksByPeriod[periodKey]; !exists {
+			tasksByPeriod[periodKey] = &PeriodTasks{
+				Tasks:     make([]TodoItem, 0),
+				PeriodKey: periodKey,
+			}
+		}
+		tasksByPeriod[periodKey].Tasks = append(tasksByPeriod[periodKey].Tasks, task)
+		tasksToRemove[i] = true
+
+		// Track time range
+		if tasksByPeriod[periodKey].StartTime.IsZero() || task.EndTime.Before(tasksByPeriod[periodKey].StartTime) {
+			tasksByPeriod[periodKey].StartTime = task.EndTime
+		}
+		if tasksByPeriod[periodKey].EndTime.IsZero() || task.EndTime.After(tasksByPeriod[periodKey].EndTime) {
+			tasksByPeriod[periodKey].EndTime = task.EndTime
 		}
 	}
 
-	if len(completedTasks) == 0 && len(deletedTasks) == 0 {
+	if len(tasksByPeriod) == 0 {
 		fmt.Println("No completed or deleted tasks found in backup")
 		return nil
-	}
-
-	// Group tasks by period
-	type PeriodStats struct {
-		Completed []string
-		Deleted   []string
-	}
-
-	tasksByPeriod := make(map[string]*PeriodStats)
-
-	// Process completed tasks
-	for _, task := range completedTasks {
-		periodKey := getPeriodKey(task.EndTime, period)
-		if _, exists := tasksByPeriod[periodKey]; !exists {
-			tasksByPeriod[periodKey] = &PeriodStats{
-				Completed: make([]string, 0),
-				Deleted:   make([]string, 0),
-			}
-		}
-		tasksByPeriod[periodKey].Completed = append(tasksByPeriod[periodKey].Completed, task.TaskName)
-	}
-
-	// Process deleted tasks
-	for _, task := range deletedTasks {
-		periodKey := getPeriodKey(task.EndTime, period)
-		if _, exists := tasksByPeriod[periodKey]; !exists {
-			tasksByPeriod[periodKey] = &PeriodStats{
-				Completed: make([]string, 0),
-				Deleted:   make([]string, 0),
-			}
-		}
-		tasksByPeriod[periodKey].Deleted = append(tasksByPeriod[periodKey].Deleted, task.TaskName)
 	}
 
 	// Sort periods
@@ -627,44 +620,136 @@ func CompactTasks(store *FileTodoStore, period string) error {
 	}
 	sort.Strings(periods)
 
-	// Format and display summary
 	fmt.Println("==============================================")
-	fmt.Printf("Task Summary (by %s)\n", period)
-	fmt.Println("==============================================")
+	fmt.Printf("Compacting tasks by %s using AI...\n", period)
+	fmt.Println("==============================================\n")
 
-	totalCompleted := 0
-	totalDeleted := 0
+	// Generate summaries for each period
+	summaryTasks := make([]TodoItem, 0)
+	totalCompacted := 0
 
-	for _, p := range periods {
-		stats := tasksByPeriod[p]
-		completedCount := len(stats.Completed)
-		deletedCount := len(stats.Deleted)
+	for _, periodKey := range periods {
+		periodData := tasksByPeriod[periodKey]
+		tasks := periodData.Tasks
 
-		totalCompleted += completedCount
-		totalDeleted += deletedCount
+		fmt.Printf("📅 Processing %s (%d tasks)...\n", periodKey, len(tasks))
 
-		fmt.Printf("📅 %s\n", p)
-		fmt.Printf("   ✅ Completed: %d tasks\n", completedCount)
-		if completedCount > 0 {
-			for i, taskName := range stats.Completed {
-				fmt.Printf("      %d. %s\n", i+1, taskName)
+		// Prepare task list for AI
+		taskList := ""
+		completedCount := 0
+		deletedCount := 0
+		for _, task := range tasks {
+			taskList += fmt.Sprintf("- %s (status: %s)\n", task.TaskName, task.Status)
+			if task.Status == "completed" {
+				completedCount++
+			} else if task.Status == "deleted" {
+				deletedCount++
 			}
 		}
-		fmt.Printf("   🗑️  Deleted: %d tasks\n", deletedCount)
-		if deletedCount > 0 {
-			for i, taskName := range stats.Deleted {
-				fmt.Printf("      %d. %s\n", i+1, taskName)
-			}
+
+		// Call AI to generate summary
+		prompt := fmt.Sprintf(`Please create a concise and friendly summary for the following tasks from %s.
+
+Time period: %s
+Total tasks: %d (completed: %d, deleted: %d)
+
+Tasks:
+%s
+
+Please provide:
+1. A brief title/name for this period (max 50 characters)
+2. A friendly summary paragraph (2-3 sentences) describing the main accomplishments and activities
+
+Format your response as:
+Title: [your title here]
+Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount, deletedCount, taskList)
+
+		req := OpenAIRequest{
+			Model: "deepseek-chat",
+			Messages: []Msg{
+				{Role: "user", Content: prompt},
+			},
 		}
-		fmt.Println()
+
+		// Show spinner during AI request
+		spin := output.NewAISpinner()
+		spin.Start()
+
+		aiResponse, err := Chat(req)
+		spin.Stop()
+
+		if err != nil {
+			logger.Warnf("Failed to generate AI summary for %s: %v", periodKey, err)
+			// Create a simple summary without AI
+			aiResponse = fmt.Sprintf("Title: Tasks Summary - %s\nSummary: Completed %d tasks and managed %d items during this period.",
+				periodKey, completedCount, len(tasks))
+		}
+
+		// Parse AI response
+		title, summary := parseAISummaryResponse(aiResponse)
+		if title == "" {
+			title = fmt.Sprintf("Tasks Summary - %s", periodKey)
+		}
+		if summary == "" {
+			summary = fmt.Sprintf("Period: %s. Completed %d tasks, deleted %d tasks.", periodKey, completedCount, deletedCount)
+		}
+
+		fmt.Printf("   ✅ Generated summary: %s\n\n", title)
+
+		// Create summary task
+		summaryTask := TodoItem{
+			TaskID:     0, // Will be set when added to main list if needed
+			CreateTime: periodData.StartTime,
+			EndTime:    periodData.EndTime,
+			User:       "System",
+			TaskName:   title,
+			TaskDesc:   summary,
+			Status:     "completed",
+			DueDate:    periodKey,
+			Urgent:     "low",
+		}
+
+		summaryTasks = append(summaryTasks, summaryTask)
+		totalCompacted += len(tasks)
+	}
+
+	// Remove original tasks from backup and add summaries
+	newBackupTodos := make([]TodoItem, 0)
+	for i, task := range backupTodos {
+		if !tasksToRemove[i] {
+			newBackupTodos = append(newBackupTodos, task)
+		}
+	}
+
+	// Add summary tasks to backup
+	newBackupTodos = append(newBackupTodos, summaryTasks...)
+
+	// Save updated backup
+	err = store.Save(&newBackupTodos, true)
+	if err != nil {
+		return fmt.Errorf("failed to save compacted backup: %w", err)
 	}
 
 	fmt.Println("==============================================")
-	fmt.Printf("Total: %d completed, %d deleted (%d periods)\n", totalCompleted, totalDeleted, len(periods))
+	fmt.Printf("✅ Successfully compacted %d tasks into %d summaries\n", totalCompacted, len(summaryTasks))
 	fmt.Println("==============================================")
 
-	logger.Infof("Compacted %d tasks from %d %ss", totalCompleted+totalDeleted, len(periods), period)
+	logger.Infof("Compacted %d tasks into %d summaries by %s", totalCompacted, len(summaryTasks), period)
 	return nil
+}
+
+// parseAISummaryResponse extracts title and summary from AI response
+func parseAISummaryResponse(response string) (title, summary string) {
+	lines := strings.Split(response, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Title:") {
+			title = strings.TrimSpace(strings.TrimPrefix(line, "Title:"))
+		} else if strings.HasPrefix(line, "Summary:") {
+			summary = strings.TrimSpace(strings.TrimPrefix(line, "Summary:"))
+		}
+	}
+	return title, summary
 }
 
 func getPeriodKey(t time.Time, period string) string {
