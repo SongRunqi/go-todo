@@ -169,15 +169,13 @@ Todo-Go supports multiple languages for all user-facing text.
 
 ### Setting Language
 
-You can set the language using the `lang` command, which persists your preference, or use environment variables for temporary changes.
-
-#### Using the lang command (Recommended)
+Use the `lang` command to set your preferred language. The setting will be saved to `~/.todo/config.json` and persist across all commands.
 
 ```bash
 # List available languages (Alfred-compatible JSON format)
 ./todo lang list
 
-# Set language to Chinese (persists to config file)
+# Set language to Chinese
 ./todo lang set zh
 
 # Set language to English
@@ -187,27 +185,9 @@ You can set the language using the `lang` command, which persists your preferenc
 ./todo lang current
 ```
 
-The language preference is saved to `~/.todo/config.json` and will persist across all future commands.
-
-#### Using environment variables (Temporary)
-
-```bash
-# Use English (default)
-./todo list
-
-# Use Chinese
-TODO_LANG=zh ./todo list
-
-# Or set permanently in your shell configuration
-export TODO_LANG=zh  # Add to ~/.bashrc or ~/.zshrc
-./todo list
-```
-
-**Note**: Environment variable `TODO_LANG` takes priority over the config file setting.
-
 ### Auto-Detection
 
-If `TODO_LANG` is not set, the application will auto-detect your system language from the following environment variables (in order):
+If no language is set in the config file, the application will auto-detect your system language from the following environment variables (in order):
 1. `LANGUAGE`
 2. `LC_ALL`
 3. `LC_MESSAGES`
@@ -217,13 +197,15 @@ If `TODO_LANG` is not set, the application will auto-detect your system language
 
 **English:**
 ```bash
+$ ./todo lang set en
 $ ./todo --help
 A simple command-line TODO application that supports natural language input and AI-powered task management.
 ```
 
 **Chinese:**
 ```bash
-$ TODO_LANG=zh ./todo --help
+$ ./todo lang set zh
+$ ./todo --help
 一个简单的命令行待办事项应用，支持自然语言输入和 AI 驱动的任务管理。
 ```
 

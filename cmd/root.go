@@ -143,14 +143,9 @@ func Execute() {
 
 func init() {
 	// Initialize i18n early for command descriptions
-	// Priority: 1. TODO_LANG env var 2. Config file 3. Auto-detect
-	lang := os.Getenv("TODO_LANG")
-	if lang == "" {
-		// Try to load language from config file
-		cfg := app.LoadConfig()
-		lang = cfg.Language
-	}
-	if err := i18n.Init(lang); err != nil {
+	// Priority: 1. Config file 2. Auto-detect
+	cfg := app.LoadConfig()
+	if err := i18n.Init(cfg.Language); err != nil {
 		// Silently fall back to English if i18n fails during init
 		// This is acceptable since init() can't easily report errors
 	}

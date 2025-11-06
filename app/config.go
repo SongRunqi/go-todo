@@ -46,13 +46,10 @@ func LoadConfig() Config {
 	llmBaseURL := getEnvOrDefault("LLM_BASE_URL", "https://api.deepseek.com/chat/completions")
 
 	// Load language configuration
-	// Priority: 1. Environment variable 2. Config file 3. Auto-detect
-	language := os.Getenv("TODO_LANG")
-	if language == "" {
-		// Try to load from config file
-		if fileConfig := loadConfigFile(homeDir); fileConfig != nil {
-			language = fileConfig.Language
-		}
+	// Priority: 1. Config file 2. Auto-detect
+	language := ""
+	if fileConfig := loadConfigFile(homeDir); fileConfig != nil {
+		language = fileConfig.Language
 	}
 
 	return Config{

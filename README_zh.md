@@ -169,15 +169,13 @@ Todo-Go 支持多种语言，所有用户界面文本均可翻译。
 
 ### 设置语言
 
-您可以使用 `lang` 命令设置语言偏好（会持久保存），或使用环境变量进行临时更改。
-
-#### 使用 lang 命令（推荐）
+使用 `lang` 命令设置您的首选语言。设置将保存到 `~/.todo/config.json` 并在所有命令中保持有效。
 
 ```bash
 # 列出可用语言（Alfred 兼容的 JSON 格式）
 ./todo lang list
 
-# 设置语言为中文（保存到配置文件）
+# 设置语言为中文
 ./todo lang set zh
 
 # 设置语言为英文
@@ -187,27 +185,9 @@ Todo-Go 支持多种语言，所有用户界面文本均可翻译。
 ./todo lang current
 ```
 
-语言偏好将保存到 `~/.todo/config.json` 并在所有后续命令中保持有效。
-
-#### 使用环境变量（临时）
-
-```bash
-# 使用中文（默认，如果系统语言是中文）
-./todo list
-
-# 使用英文
-TODO_LANG=en ./todo list
-
-# 或在 shell 配置中永久设置
-export TODO_LANG=zh  # 添加到 ~/.bashrc 或 ~/.zshrc
-./todo list
-```
-
-**注意**：环境变量 `TODO_LANG` 优先于配置文件设置。
-
 ### 自动检测
 
-如果未设置 `TODO_LANG`，应用程序将从以下环境变量（按顺序）自动检测系统语言：
+如果配置文件中未设置语言，应用程序将从以下环境变量（按顺序）自动检测系统语言：
 1. `LANGUAGE`
 2. `LC_ALL`
 3. `LC_MESSAGES`
@@ -217,13 +197,15 @@ export TODO_LANG=zh  # 添加到 ~/.bashrc 或 ~/.zshrc
 
 **中文：**
 ```bash
-$ TODO_LANG=zh ./todo --help
+$ ./todo lang set zh
+$ ./todo --help
 一个简单的命令行待办事项应用，支持自然语言输入和 AI 驱动的任务管理。
 ```
 
 **English:**
 ```bash
-$ TODO_LANG=en ./todo --help
+$ ./todo lang set en
+$ ./todo --help
 A simple command-line TODO application that supports natural language input and AI-powered task management.
 ```
 
