@@ -26,6 +26,10 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 - **Multiple Output Formats**: JSON (Alfred-compatible) and Markdown formats
 
 ### Developer Features
+- **🌍 Internationalization (i18n)**: Full support for English and Chinese
+  - Auto-detects system language from environment
+  - Switch language via `TODO_LANG` environment variable
+  - All user-facing text fully translated
 - **🎨 Colored Output**: Beautiful terminal output with color-coded messages
   - ✓ Green for success messages
   - ✗ Red for errors with actionable suggestions
@@ -62,7 +66,46 @@ Check your Go version:
 go version  # Should be 1.21 or higher
 ```
 
-### Quick Install
+### Recommended: Using Installation Script
+
+The easiest way to install:
+
+```bash
+# Clone the repository
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# Run the installation script
+chmod +x install.sh
+./install.sh
+```
+
+The script will:
+- ✓ Build the optimized binary
+- ✓ Install to `~/.local/bin/todo`
+- ✓ Initialize todo directories and config
+- ✓ Guide you through language selection
+
+### Alternative: Using Makefile
+
+```bash
+# Clone the repository
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# Install and initialize (recommended)
+make init
+
+# Or just install (without initialization)
+make install
+
+# Or just build (binary in current directory)
+make build
+```
+
+Run `make help` to see all available commands.
+
+### Manual Installation
 
 ```bash
 # Clone the repository
@@ -73,47 +116,45 @@ cd go-todo
 go mod download
 
 # Build the application
-go build -o todo main.go
+go build -ldflags="-s -w" -o todo main.go
 
-# Verify the build
-./todo --help
-```
+# Install to ~/.local/bin
+mkdir -p ~/.local/bin
+cp todo ~/.local/bin/
+chmod +x ~/.local/bin/todo
 
-### Install Globally
-
-To use `todo` from anywhere:
-
-```bash
-# Linux/macOS - copy to /usr/local/bin
-sudo cp todo /usr/local/bin/todo
-
-# Or copy to ~/bin (add ~/bin to PATH if needed)
-mkdir -p ~/bin
-cp todo ~/bin/todo
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+# Add to PATH if not already (add to your shell config)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 
-# Now use 'todo' from anywhere
+# Initialize todo environment
+todo init
 todo list
 ```
 
 ## Quick Start
 
 ```bash
-# 1. Set your API key
+# 1. Initialize todo environment (if not already done)
+todo init
+
+# 2. Set your API key
 export API_KEY="your-deepseek-api-key-here"
 
-# 2. Create a task using natural language
-./todo "Buy groceries tomorrow evening"
+# 3. Set your preferred language (optional, will be asked during init)
+todo lang set en    # or 'zh' for Chinese
 
-# 3. List all tasks
-./todo list
+# 4. Create a task using natural language
+todo "Buy groceries tomorrow evening"
 
-# 4. Complete a task
-./todo complete 1
+# 5. List all tasks
+todo list
 
-# 5. View completed tasks
-./todo back
+# 6. Complete a task
+todo complete 1
+
+# 7. View completed tasks
+todo back
 ```
 
 ## Configuration
@@ -126,6 +167,9 @@ The application uses the following environment variables:
 - `API_KEY`: Your DeepSeek API key for LLM functionality (or `DEEPSEEK_API_KEY`)
 
 #### Optional
+- `TODO_LANG`: Set language for interface (defaults to auto-detect from system)
+  - Supported values: `en` (English), `zh` (Chinese)
+  - Auto-detects from `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, or `LANG` if not set
 - `LLM_BASE_URL`: Custom LLM API endpoint (defaults to `https://api.deepseek.com/chat/completions`)
   - Use this to switch to other LLM providers (OpenAI, Claude, etc.)
 - `LLM_MODEL`: Model to use (defaults to the provider's default)
@@ -143,12 +187,66 @@ export API_KEY="your-api-key-here"
 export LLM_BASE_URL="https://api.deepseek.com/chat/completions"
 export LLM_MODEL="deepseek-chat"
 export LOG_LEVEL="info"
+export TODO_LANG="en"  # or "zh" for Chinese
 
 # Use OpenAI instead
 export API_KEY="your-openai-api-key"
 export LLM_BASE_URL="https://api.openai.com/v1/chat/completions"
 export LLM_MODEL="gpt-4"
 ```
+
+## Internationalization (i18n)
+
+Todo-Go supports multiple languages for all user-facing text.
+
+### Supported Languages
+
+- **English (en)**: Default language
+- **中文 (zh)**: Simplified Chinese
+
+### Setting Language
+
+Use the `lang` command to set your preferred language. The setting will be saved to `~/.todo/config.json` and persist across all commands.
+
+```bash
+# List available languages (Alfred-compatible JSON format)
+./todo lang list
+
+# Set language to Chinese
+./todo lang set zh
+
+# Set language to English
+./todo lang set en
+
+# Check current language
+./todo lang current
+```
+
+### Auto-Detection
+
+If no language is set in the config file, the application will auto-detect your system language from the following environment variables (in order):
+1. `LANGUAGE`
+2. `LC_ALL`
+3. `LC_MESSAGES`
+4. `LANG`
+
+### Examples
+
+**English:**
+```bash
+$ ./todo lang set en
+$ ./todo --help
+A simple command-line TODO application that supports natural language input and AI-powered task management.
+```
+
+**Chinese:**
+```bash
+$ ./todo lang set zh
+$ ./todo --help
+一个简单的命令行待办事项应用，支持自然语言输入和 AI 驱动的任务管理。
+```
+
+All command help, error messages, validation messages, and output text will be displayed in your selected language.
 
 ## Usage
 
@@ -324,6 +422,24 @@ Remove a task permanently:
 ./todo "delete 1"
 ```
 
+### Language Management
+
+Manage language settings for the application:
+
+```bash
+# List available languages (Alfred-compatible JSON)
+./todo lang list
+
+# Set preferred language
+./todo lang set en   # English
+./todo lang set zh   # Chinese
+
+# Show current language
+./todo lang current
+```
+
+The language preference is saved to `~/.todo/config.json` and persists across all commands. See the [Internationalization](#internationalization-i18n) section for more details.
+
 ## Building for Different Platforms
 
 ### Build for Current Platform
@@ -441,15 +557,29 @@ Tasks are stored in JSON files:
 
 ## Recent Updates
 
-### Version 1.2.0 (Latest)
+### Version 1.3.0 (Latest)
 
-1. **Backup Management Commands**:
-   - `back get <id>`: View completed task details from backup
-   - `back restore <id>`: Restore completed tasks back to active list
-2. **Markdown Output for Tasks**: `get` command now outputs tasks in clean Markdown format
-3. **Task ID in Alfred Items**: Alfred titles now begin with `[TaskID]` for easy reference
-4. **Enhanced AI Descriptions**: Improved LLM prompt to generate detailed, meaningful task descriptions with full context
-5. **Configurable LLM Endpoint**: Added `LLM_BASE_URL` environment variable support for flexible API provider configuration
+1. **Internationalization (i18n) Support**:
+   - Full support for English and Chinese languages
+   - Auto-detects system language or use `TODO_LANG` environment variable
+   - All user-facing text fully translated (commands, messages, errors, etc.)
+
+2. **CI/CD Pipeline**:
+   - GitHub Actions automated testing
+   - Multi-platform builds (Linux, macOS, Windows)
+   - Linting and formatting checks
+   - Coverage reporting integration
+
+3. **UX Improvements**:
+   - Colored terminal output with status indicators
+   - Progress spinners for AI operations
+   - Error messages with actionable suggestions
+   - Shell completion support (Bash, Zsh, Fish, PowerShell)
+
+4. **Performance Optimizations**:
+   - Comprehensive benchmark suite
+   - Optimized build flags
+   - Performance baseline metrics
 
 ## Development
 
@@ -478,6 +608,11 @@ go-todo/
 │   ├── parser.go               # Markdown/JSON parser
 │   └── parser_test.go          # Parser tests (94.6% coverage)
 ├── internal/                    # Internal packages
+│   ├── i18n/                   # Internationalization
+│   │   ├── i18n.go            # i18n package with embedded translations
+│   │   └── translations/      # Translation files
+│   │       ├── en.json        # English translations
+│   │       └── zh.json        # Chinese translations
 │   ├── logger/                 # Structured logging (zerolog)
 │   ├── validator/              # Input validation
 │   ├── ai/                     # AI client abstraction

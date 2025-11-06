@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/SongRunqi/go-todo/internal/i18n"
 )
 
 func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
@@ -45,26 +47,26 @@ func sortedList(todos *[]TodoItem) []TodoItem {
 	var newTodos []TodoItem = make([]TodoItem, 0)
 	for _, v := range times {
 		if item := &(*todos)[score[v]]; v < 0 {
-			item.Urgent = "已截止"
+			item.Urgent = i18n.T("time.expired")
 		} else {
 			days := v / 86400
 			hours := (v % 86400) / 3600
 			minutes := (v % 3600) / 60
-			seconds := v % 60
-			tip := "还有"
+
+			tip := ""
 			if days > 0 {
-				tip = tip + strconv.FormatInt(days, 10) + "d "
+				tip = tip + i18n.T("time.days", days) + " "
+			} else if hours > 0 {
+				tip = tip + i18n.T("time.hours", hours) + " "
+			} else if minutes > 0 {
+				tip = tip + i18n.T("time.minutes", minutes) + " "
 			}
-			if hours > 0 {
-				tip = tip + strconv.FormatInt(hours, 10) + "h "
+
+			if tip != "" {
+				item.Urgent = i18n.T("time.remaining", tip)
+			} else {
+				item.Urgent = i18n.T("time.expired")
 			}
-			if minutes > 0 {
-				tip = tip + strconv.FormatInt(minutes, 10) + "m "
-			}
-			if seconds > 0 {
-				tip = tip + strconv.FormatInt(seconds, 10) + "s "
-			}
-			item.Urgent = tip + "截止"
 		}
 		newTodos = append(newTodos, (*todos)[score[v]])
 	}

@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/SongRunqi/go-todo/app"
+	"github.com/SongRunqi/go-todo/internal/i18n"
 	"github.com/SongRunqi/go-todo/internal/logger"
 )
 
@@ -24,22 +26,16 @@ var (
 	currentTime time.Time
 )
 
+var (
+	descriptionsOnce sync.Once
+	updateSubcommandDescriptionsFunc func()
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "todo [natural language input]",
-	Short: "AI-powered todo management CLI",
-	Long: `Todo-Go is an AI-powered command-line todo management application.
-It supports both structured commands and natural language input powered by LLM.
-
-Examples:
-  # Natural language (AI-powered)
-  todo "Buy groceries tomorrow evening"
-  todo "Write report by Friday; Call client tomorrow"
-
-  # Structured commands
-  todo list
-  todo get 1
-  todo complete 1`,
+	Short: "",
+	Long:  "",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Initialize logger
 		logLevel := os.Getenv("LOG_LEVEL")
@@ -51,6 +47,18 @@ Examples:
 		// Initialize configuration
 		config = app.LoadConfig()
 
+		// Initialize i18n (may have been initialized in init(), reinit with config language)
+		if config.Language != "" {
+			if err := i18n.SetLanguage(config.Language); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to set language: %v\n", err)
+			}
+		}
+
+		// Update subcommand descriptions (once) after all commands are registered
+		if updateSubcommandDescriptionsFunc != nil {
+			descriptionsOnce.Do(updateSubcommandDescriptionsFunc)
+		}
+
 		// Initialize store
 		store = &app.FileTodoStore{
 			Path:       config.TodoPath,
@@ -61,7 +69,7 @@ Examples:
 		var err error
 		loadedTodos, err := store.Load(false)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading todos: %v\n", err)
+			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.loading_todos"), err)
 			os.Exit(1)
 		}
 		todos = &loadedTodos
@@ -96,6 +104,19 @@ func Execute() {
 			logger.Init(logLevel)
 
 			config = app.LoadConfig()
+
+			// Initialize i18n (may have been initialized in init(), reinit with config language)
+			if config.Language != "" {
+				if err := i18n.SetLanguage(config.Language); err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: failed to set language: %v\n", err)
+				}
+			}
+
+			// Update subcommand descriptions (once) after all commands are registered
+			if updateSubcommandDescriptionsFunc != nil {
+				descriptionsOnce.Do(updateSubcommandDescriptionsFunc)
+			}
+
 			store = &app.FileTodoStore{
 				Path:       config.TodoPath,
 				BackupPath: config.BackupPath,
@@ -103,7 +124,7 @@ func Execute() {
 
 			loadedTodos, loadErr := store.Load(false)
 			if loadErr != nil {
-				fmt.Fprintf(os.Stderr, "Error loading todos: %v\n", loadErr)
+				fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.loading_todos"), loadErr)
 				os.Exit(1)
 			}
 			todos = &loadedTodos
@@ -121,49 +142,94 @@ func Execute() {
 }
 
 func init() {
+	// Initialize i18n early for command descriptions
+	// Priority: 1. Config file 2. Auto-detect
+	cfg := app.LoadConfig()
+	if err := i18n.Init(cfg.Language); err != nil {
+		// Silently fall back to English if i18n fails during init
+		// This is acceptable since init() can't easily report errors
+	}
+
+	// Set command descriptions
+	rootCmd.Short = i18n.T("cmd.root.short")
+	rootCmd.Long = i18n.T("cmd.root.long")
+	completionCmd.Short = i18n.T("cmd.root.completion.short")
+	completionCmd.Long = i18n.T("cmd.root.completion.long")
+
 	// Add completion command
 	rootCmd.AddCommand(completionCmd)
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.todo/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+
+	// Define the updateSubcommandDescriptionsFunc after rootCmd is initialized
+	updateSubcommandDescriptionsFunc = func() {
+		for _, c := range rootCmd.Commands() {
+			switch c.Name() {
+			case "list":
+				c.Short = i18n.T("cmd.list.short")
+				c.Long = i18n.T("cmd.list.long")
+			case "get":
+				c.Short = i18n.T("cmd.get.short")
+				c.Long = i18n.T("cmd.get.long")
+			case "complete":
+				c.Short = i18n.T("cmd.complete.short")
+				c.Long = i18n.T("cmd.complete.long")
+			case "delete":
+				c.Short = i18n.T("cmd.delete.short")
+				c.Long = i18n.T("cmd.delete.long")
+			case "init":
+				c.Short = i18n.T("cmd.init.short")
+				c.Long = i18n.T("cmd.init.long")
+			case "update":
+				c.Short = i18n.T("cmd.update.short")
+				c.Long = i18n.T("cmd.update.long")
+			case "back":
+				c.Short = i18n.T("cmd.back.short")
+				c.Long = i18n.T("cmd.back.long")
+				// Set back subcommands
+				for _, sc := range c.Commands() {
+					switch sc.Name() {
+					case "get":
+						sc.Short = i18n.T("cmd.back.get.short")
+						sc.Long = i18n.T("cmd.back.get.long")
+					case "restore":
+						sc.Short = i18n.T("cmd.back.restore.short")
+						sc.Long = i18n.T("cmd.back.restore.long")
+					}
+				}
+			case "lang":
+				c.Short = i18n.T("cmd.lang.short")
+				c.Long = i18n.T("cmd.lang.long")
+				// Set lang subcommands
+				for _, sc := range c.Commands() {
+					switch sc.Name() {
+					case "list":
+						sc.Short = i18n.T("cmd.lang.list.short")
+						sc.Long = i18n.T("cmd.lang.list.long")
+					case "set":
+						sc.Short = i18n.T("cmd.lang.set.short")
+						sc.Long = i18n.T("cmd.lang.set.long")
+					case "current":
+						sc.Short = i18n.T("cmd.lang.current.short")
+						sc.Long = i18n.T("cmd.lang.current.long")
+					}
+				}
+			}
+		}
+	}
+
+	// Call it once now to set descriptions for all already-registered subcommands
+	updateSubcommandDescriptionsFunc()
 }
+
 
 // completionCmd represents the completion command
 var completionCmd = &cobra.Command{
 	Use:   "completion [bash|zsh|fish|powershell]",
-	Short: "Generate shell completion scripts",
-	Long: `Generate shell completion scripts for todo.
-
-To load completions:
-
-Bash:
-  $ source <(todo completion bash)
-  # To load completions for each session, execute once:
-  # Linux:
-  $ todo completion bash > /etc/bash_completion.d/todo
-  # macOS:
-  $ todo completion bash > $(brew --prefix)/etc/bash_completion.d/todo
-
-Zsh:
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it. You can execute the following once:
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
-  # To load completions for each session, execute once:
-  $ todo completion zsh > "${fpath[1]}/_todo"
-  # You will need to start a new shell for this setup to take effect.
-
-Fish:
-  $ todo completion fish | source
-  # To load completions for each session, execute once:
-  $ todo completion fish > ~/.config/fish/completions/todo.fish
-
-PowerShell:
-  PS> todo completion powershell | Out-String | Invoke-Expression
-  # To load completions for every new session, run:
-  PS> todo completion powershell > todo.ps1
-  # and source this file from your PowerShell profile.
-`,
+	Short: "",
+	Long:  "",
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),

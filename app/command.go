@@ -8,6 +8,7 @@ import (
 	"github.com/SongRunqi/go-todo/internal/logger"
 	"github.com/SongRunqi/go-todo/internal/validator"
 	"github.com/SongRunqi/go-todo/internal/output"
+	"github.com/SongRunqi/go-todo/internal/i18n"
 )
 
 const cmd = `
@@ -251,40 +252,42 @@ func GetTask(todos *[]TodoItem, id int) error {
 
 			md := fmt.Sprintf(`# %s
 
-- **Task ID:** %d
-- **Task Name:** %s
-- **Status:** %s
-- **User:** %s
-- **Due Date:** %s
-- **Urgency:** %s%s%s
+- **%s:** %d
+- **%s:** %s
+- **%s:** %s
+- **%s:** %s
+- **%s:** %s
+- **%s:** %s%s%s
 
-## Description
+## %s
 
 %s
 
 ---
 
-**Tips:** To update this task, copy this markdown and modify the fields above.`,
+**%s:** %s`,
 				task.TaskName,
-				task.TaskID,
-				task.TaskName,
-				task.Status,
-				task.User,
-				task.DueDate,
-				task.Urgent,
+				i18n.T("field.task_id"), task.TaskID,
+				i18n.T("field.task_name"), task.TaskName,
+				i18n.T("field.status"), task.Status,
+				i18n.T("field.user"), task.User,
+				i18n.T("field.due_date"), task.DueDate,
+				i18n.T("field.urgency"), task.Urgent,
 				func() string {
 					if createdTime != "" {
-						return "\n- **Created:** " + createdTime
+						return "\n- **" + i18n.T("field.created") + ":** " + createdTime
 					}
 					return ""
 				}(),
 				func() string {
 					if endTime != "" {
-						return "\n- **End Time:** " + endTime
+						return "\n- **" + i18n.T("field.end_time") + ":** " + endTime
 					}
 					return ""
 				}(),
-				task.TaskDesc)
+				i18n.T("field.description"),
+				task.TaskDesc,
+				i18n.T("field.tips"), i18n.T("tip.edit_markdown"))
 
 			fmt.Println(md)
 			return nil
