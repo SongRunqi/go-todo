@@ -66,7 +66,46 @@ Check your Go version:
 go version  # Should be 1.21 or higher
 ```
 
-### Quick Install
+### Recommended: Using Installation Script
+
+The easiest way to install:
+
+```bash
+# Clone the repository
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# Run the installation script
+chmod +x install.sh
+./install.sh
+```
+
+The script will:
+- ✓ Build the optimized binary
+- ✓ Install to `~/.local/bin/todo`
+- ✓ Initialize todo directories and config
+- ✓ Guide you through language selection
+
+### Alternative: Using Makefile
+
+```bash
+# Clone the repository
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# Install and initialize (recommended)
+make init
+
+# Or just install (without initialization)
+make install
+
+# Or just build (binary in current directory)
+make build
+```
+
+Run `make help` to see all available commands.
+
+### Manual Installation
 
 ```bash
 # Clone the repository
@@ -77,47 +116,45 @@ cd go-todo
 go mod download
 
 # Build the application
-go build -o todo main.go
+go build -ldflags="-s -w" -o todo main.go
 
-# Verify the build
-./todo --help
-```
+# Install to ~/.local/bin
+mkdir -p ~/.local/bin
+cp todo ~/.local/bin/
+chmod +x ~/.local/bin/todo
 
-### Install Globally
-
-To use `todo` from anywhere:
-
-```bash
-# Linux/macOS - copy to /usr/local/bin
-sudo cp todo /usr/local/bin/todo
-
-# Or copy to ~/bin (add ~/bin to PATH if needed)
-mkdir -p ~/bin
-cp todo ~/bin/todo
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+# Add to PATH if not already (add to your shell config)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 
-# Now use 'todo' from anywhere
+# Initialize todo environment
+todo init
 todo list
 ```
 
 ## Quick Start
 
 ```bash
-# 1. Set your API key
+# 1. Initialize todo environment (if not already done)
+todo init
+
+# 2. Set your API key
 export API_KEY="your-deepseek-api-key-here"
 
-# 2. Create a task using natural language
-./todo "Buy groceries tomorrow evening"
+# 3. Set your preferred language (optional, will be asked during init)
+todo lang set en    # or 'zh' for Chinese
 
-# 3. List all tasks
-./todo list
+# 4. Create a task using natural language
+todo "Buy groceries tomorrow evening"
 
-# 4. Complete a task
-./todo complete 1
+# 5. List all tasks
+todo list
 
-# 5. View completed tasks
-./todo back
+# 6. Complete a task
+todo complete 1
+
+# 7. View completed tasks
+todo back
 ```
 
 ## Configuration

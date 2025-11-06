@@ -19,6 +19,9 @@
   "cmd.delete.short": "Delete a todo permanently",
   "cmd.delete.long": "Delete a todo permanently by its ID",
 
+  "cmd.init.short": "Initialize todo environment",
+  "cmd.init.long": "Initialize the todo application by creating necessary directories and configuration files",
+
   "cmd.update.short": "Update a todo",
   "cmd.update.long": "Update a todo with markdown content from stdin or file",
   "cmd.update.example": "  # Update a todo by editing markdown\n  todo get 1 | todo update",

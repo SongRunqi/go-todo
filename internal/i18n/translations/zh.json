@@ -19,6 +19,9 @@
   "cmd.delete.short": "永久删除待办事项",
   "cmd.delete.long": "通过 ID 永久删除待办事项",
 
+  "cmd.init.short": "初始化待办环境",
+  "cmd.init.long": "通过创建必要的目录和配置文件来初始化待办应用程序",
+
   "cmd.update.short": "更新待办事项",
   "cmd.update.long": "使用来自标准输入或文件的 Markdown 内容更新待办事项",
   "cmd.update.example": "  # 通过编辑 Markdown 更新待办事项\n  todo get 1 | todo update",

@@ -66,7 +66,46 @@
 go version  # 应该是 1.21 或更高版本
 ```
 
-### 快速安装
+### 推荐：使用安装脚本
+
+最简单的安装方法：
+
+```bash
+# 克隆仓库
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# 运行安装脚本
+chmod +x install.sh
+./install.sh
+```
+
+脚本会：
+- ✓ 构建优化的二进制文件
+- ✓ 安装到 `~/.local/bin/todo`
+- ✓ 初始化待办目录和配置
+- ✓ 引导您选择语言
+
+### 替代方法：使用 Makefile
+
+```bash
+# 克隆仓库
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# 安装并初始化（推荐）
+make init
+
+# 或仅安装（不初始化）
+make install
+
+# 或仅构建（二进制文件在当前目录）
+make build
+```
+
+运行 `make help` 查看所有可用命令。
+
+### 手动安装
 
 ```bash
 # 克隆仓库
@@ -77,47 +116,45 @@ cd go-todo
 go mod download
 
 # 构建应用
-go build -o todo main.go
+go build -ldflags="-s -w" -o todo main.go
 
-# 验证构建
-./todo --help
-```
+# 安装到 ~/.local/bin
+mkdir -p ~/.local/bin
+cp todo ~/.local/bin/
+chmod +x ~/.local/bin/todo
 
-### 全局安装
-
-要从任何位置使用 `todo`：
-
-```bash
-# Linux/macOS - 复制到 /usr/local/bin
-sudo cp todo /usr/local/bin/todo
-
-# 或复制到 ~/bin（需要将 ~/bin 添加到 PATH）
-mkdir -p ~/bin
-cp todo ~/bin/todo
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+# 如果还未添加到 PATH（添加到您的 shell 配置）
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 
-# 现在可以从任何地方使用 'todo'
+# 初始化待办环境
+todo init
 todo list
 ```
 
 ## 快速开始
 
 ```bash
-# 1. 设置你的 API 密钥
+# 1. 初始化待办环境（如果还未完成）
+todo init
+
+# 2. 设置你的 API 密钥
 export API_KEY="your-deepseek-api-key-here"
 
-# 2. 使用自然语言创建任务
-./todo "明天晚上买菜"
+# 3. 设置首选语言（可选，初始化时会询问）
+todo lang set zh    # 或 'en' 表示英文
 
-# 3. 列出所有任务
-./todo list
+# 4. 使用自然语言创建任务
+todo "明天晚上买菜"
 
-# 4. 完成任务
-./todo complete 1
+# 5. 列出所有任务
+todo list
 
-# 5. 查看已完成的任务
-./todo back
+# 6. 完成任务
+todo complete 1
+
+# 7. 查看已完成的任务
+todo back
 ```
 
 ## 配置

@@ -179,6 +179,9 @@ func init() {
 			case "delete":
 				c.Short = i18n.T("cmd.delete.short")
 				c.Long = i18n.T("cmd.delete.long")
+			case "init":
+				c.Short = i18n.T("cmd.init.short")
+				c.Long = i18n.T("cmd.init.long")
 			case "update":
 				c.Short = i18n.T("cmd.update.short")
 				c.Long = i18n.T("cmd.update.long")
