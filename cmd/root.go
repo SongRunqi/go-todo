@@ -72,7 +72,9 @@ var rootCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.loading_todos"), err)
 			os.Exit(1)
 		}
-		todos = &loadedTodos
+		// Allocate a new slice on the heap to avoid dangling pointer
+		todosList := loadedTodos
+		todos = &todosList
 		currentTime = time.Now()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -127,7 +129,9 @@ func Execute() {
 				fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.loading_todos"), loadErr)
 				os.Exit(1)
 			}
-			todos = &loadedTodos
+			// Allocate a new slice on the heap to avoid dangling pointer
+			todosList := loadedTodos
+			todos = &todosList
 			currentTime = time.Now()
 
 			// Treat the first argument as natural language input
