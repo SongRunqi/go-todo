@@ -29,12 +29,13 @@ func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
 }
 
 func sortedList(todos *[]TodoItem) []TodoItem {
-	score := make(map[int64]int)
+	// Use map[int64][]int to handle multiple tasks with the same end time
+	score := make(map[int64][]int)
 	now := time.Now().Unix()
 	// assign score with task id, the less score, the higher priority
 	for i, v := range *todos {
 		s := v.EndTime.Unix() - now
-		score[s] = i
+		score[s] = append(score[s], i)
 	}
 
 	times := make([]int64, 0)
@@ -46,29 +47,33 @@ func sortedList(todos *[]TodoItem) []TodoItem {
 	})
 	var newTodos []TodoItem = make([]TodoItem, 0)
 	for _, v := range times {
-		if item := &(*todos)[score[v]]; v < 0 {
-			item.Urgent = i18n.T("time.expired")
-		} else {
-			days := v / 86400
-			hours := (v % 86400) / 3600
-			minutes := (v % 3600) / 60
-
-			tip := ""
-			if days > 0 {
-				tip = tip + i18n.T("time.days", days) + " "
-			} else if hours > 0 {
-				tip = tip + i18n.T("time.hours", hours) + " "
-			} else if minutes > 0 {
-				tip = tip + i18n.T("time.minutes", minutes) + " "
-			}
-
-			if tip != "" {
-				item.Urgent = i18n.T("time.remaining", tip)
-			} else {
+		// Process all tasks with the same time score
+		for _, idx := range score[v] {
+			item := &(*todos)[idx]
+			if v < 0 {
 				item.Urgent = i18n.T("time.expired")
+			} else {
+				days := v / 86400
+				hours := (v % 86400) / 3600
+				minutes := (v % 3600) / 60
+
+				tip := ""
+				if days > 0 {
+					tip = tip + i18n.T("time.days", days) + " "
+				} else if hours > 0 {
+					tip = tip + i18n.T("time.hours", hours) + " "
+				} else if minutes > 0 {
+					tip = tip + i18n.T("time.minutes", minutes) + " "
+				}
+
+				if tip != "" {
+					item.Urgent = i18n.T("time.remaining", tip)
+				} else {
+					item.Urgent = i18n.T("time.expired")
+				}
 			}
+			newTodos = append(newTodos, (*todos)[idx])
 		}
-		newTodos = append(newTodos, (*todos)[score[v]])
 	}
 	return newTodos
 }
