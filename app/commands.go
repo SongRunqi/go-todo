@@ -151,7 +151,15 @@ func (c *AICommand) Execute(ctx *Context) error {
 	}
 	loadedTodos := string(loadedbytes)
 
-	contextStr := "current time is" + nowStr + " and today is " + weekday + ". user input: " + ctx.Args[1] + ", current todos: " + loadedTodos
+	// Determine user's preferred language for task creation
+	userLanguage := "English" // default
+	if ctx.Config.Language == "zh-CN" || ctx.Config.Language == "zh" {
+		userLanguage = "Chinese"
+	} else if ctx.Config.Language == "en" || ctx.Config.Language == "en-US" {
+		userLanguage = "English"
+	}
+
+	contextStr := "current time is" + nowStr + " and today is " + weekday + ". user preferred language: " + userLanguage + ". user input: " + ctx.Args[1] + ", current todos: " + loadedTodos
 	logger.Debugf("AI context: %s", contextStr)
 
 	req := OpenAIRequest{
