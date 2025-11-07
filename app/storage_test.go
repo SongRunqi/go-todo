@@ -133,10 +133,36 @@ func TestFileTodoStore_Load_NonExistentFile(t *testing.T) {
 		BackupPath: todoPath + ".bak",
 	}
 
-	// Loading a non-existent file should return an error
-	_, err := store.Load(false)
-	if err == nil {
-		t.Fatal("Expected error when loading non-existent file, got nil")
+	// Loading a non-existent file should create the file and return empty list
+	todos, err := store.Load(false)
+	if err != nil {
+		t.Fatalf("Expected no error when loading non-existent file, got: %v", err)
+	}
+
+	// Should return empty list
+	if len(todos) != 0 {
+		t.Errorf("Expected 0 todos from non-existent file, got %d", len(todos))
+	}
+
+	// File should be created
+	if _, err := os.Stat(todoPath); os.IsNotExist(err) {
+		t.Fatal("Expected file to be created, but it doesn't exist")
+	}
+
+	// Verify the created file contains empty JSON array
+	data, err := os.ReadFile(todoPath)
+	if err != nil {
+		t.Fatalf("Failed to read created file: %v", err)
+	}
+
+	var parsed []TodoItem
+	err = json.Unmarshal(data, &parsed)
+	if err != nil {
+		t.Fatalf("Created file does not contain valid JSON: %v", err)
+	}
+
+	if len(parsed) != 0 {
+		t.Errorf("Expected created file to contain empty array, got %d items", len(parsed))
 	}
 }
 

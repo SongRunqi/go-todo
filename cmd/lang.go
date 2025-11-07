@@ -66,8 +66,8 @@ var langSetCmd = &cobra.Command{
 		}
 
 		if !validLang {
-			fmt.Fprintf(os.Stderr, i18n.T("cmd.lang.error.unsupported_code"), langCode)
-			fmt.Fprintf(os.Stderr, i18n.T("cmd.lang.error.supported_languages"))
+			fmt.Fprintf(os.Stderr, "%s", i18n.T("cmd.lang.error.unsupported_code"))
+			fmt.Fprintf(os.Stderr, "%s", i18n.T("cmd.lang.error.supported_languages"))
 			os.Exit(1)
 		}
 
