@@ -90,7 +90,8 @@ Return format (remove markdown code fence):
 			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left",
 			"isRecurring": "true or false - Detect if this is a recurring/repeating task. Keywords: 每天 (daily), 每周 (weekly), 每月 (monthly), 每年 (yearly), daily, weekly, monthly, yearly, every day, every week, 定期 (regularly), 例行 (routine)",
 			"recurringType": "Only set if isRecurring=true. Values: 'daily', 'weekly', 'monthly', 'yearly'. Examples: 每天->daily, 每周->weekly, 每月->monthly, 每年->yearly",
-			"recurringInterval": "Only set if isRecurring=true. Integer for interval. Default 1. Examples: 每天->1, 每两天->2, 每周->1, 每两周->2"
+			"recurringInterval": "Only set if isRecurring=true. Integer for interval. Default 1. Examples: 每天->1, 每两天->2, 每周->1, 每两周->2",
+			"recurringWeekdays": "Only set if isRecurring=true AND recurringType='weekly' AND task specifies specific weekdays. Array of integers where 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. Examples: 周一周三周五->[1,3,5], 周二周四->[2,4], Mon/Wed/Fri->[1,3,5], Tue/Thu->[2,4]. Leave empty for simple weekly (every week same day)."
 		}
 	]
 }
@@ -122,6 +123,10 @@ RECURRING task examples:
 - "每月1号交房租" -> isRecurring=true, recurringType="monthly", recurringInterval=1
 - "daily standup at 9am" -> isRecurring=true, recurringType="daily", recurringInterval=1
 - "weekly report every Friday" -> isRecurring=true, recurringType="weekly", recurringInterval=1
+- "周一、周三、周五去上课" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], endTime=next matching day
+- "周二周四晚上健身" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4]
+- "Mon/Wed/Fri team meeting" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5]
+- "Tuesday and Thursday gym" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4]
 - "例行检查设备" (without specific frequency) -> isRecurring=false (not specific enough)
 - "买牛奶" (one-time task) -> isRecurring=false
 
@@ -219,7 +224,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 				task.CompletionCount++
 
 				// Calculate next occurrence
-				nextTime := calculateNextOccurrence(task.EndTime, task.RecurringType, task.RecurringInterval)
+				nextTime := calculateNextOccurrence(task)
 				task.EndTime = nextTime
 
 				// Update DueDate to reflect next occurrence
@@ -257,21 +262,63 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 }
 
 // calculateNextOccurrence calculates the next occurrence time based on recurring type and interval
-func calculateNextOccurrence(current time.Time, recurringType string, interval int) time.Time {
+func calculateNextOccurrence(task *TodoItem) time.Time {
+	current := task.EndTime
+	recurringType := task.RecurringType
+	interval := task.RecurringInterval
+
 	switch recurringType {
 	case "daily":
 		return current.AddDate(0, 0, interval)
+
 	case "weekly":
+		// Check if specific weekdays are set
+		if len(task.RecurringWeekdays) > 0 {
+			return calculateNextWeekday(current, task.RecurringWeekdays)
+		}
+		// Default weekly behavior: add interval weeks
 		return current.AddDate(0, 0, interval*7)
+
 	case "monthly":
 		return current.AddDate(0, interval, 0)
+
 	case "yearly":
 		return current.AddDate(interval, 0, 0)
+
 	default:
 		// Default to daily if type is unknown
 		logger.Warnf("Unknown recurring type: %s, defaulting to daily", recurringType)
 		return current.AddDate(0, 0, 1)
 	}
+}
+
+// calculateNextWeekday finds the next occurrence for specific weekdays
+// weekdays is an array of integers (0=Sunday, 1=Monday, ..., 6=Saturday)
+func calculateNextWeekday(current time.Time, weekdays []int) time.Time {
+	if len(weekdays) == 0 {
+		return current.AddDate(0, 0, 7) // Default to next week same day
+	}
+
+	// Convert weekdays slice to map for quick lookup
+	weekdaySet := make(map[int]bool)
+	for _, day := range weekdays {
+		weekdaySet[day] = true
+	}
+
+	// Start from next day
+	next := current.AddDate(0, 0, 1)
+
+	// Search for the next matching weekday (max 7 days)
+	for i := 0; i < 7; i++ {
+		currentWeekday := int(next.Weekday())
+		if weekdaySet[currentWeekday] {
+			return next
+		}
+		next = next.AddDate(0, 0, 1)
+	}
+
+	// Fallback (should never reach here if weekdays is not empty)
+	return current.AddDate(0, 0, 7)
 }
 
 func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
@@ -304,6 +351,9 @@ func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
 			return err
 		}
 		if err := validator.ValidateRecurringInterval(todo.RecurringInterval, todo.IsRecurring); err != nil {
+			return err
+		}
+		if err := validator.ValidateRecurringWeekdays(todo.RecurringWeekdays); err != nil {
 			return err
 		}
 		// Set default interval if not specified

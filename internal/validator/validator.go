@@ -159,6 +159,31 @@ func ValidateRecurringInterval(interval int, isRecurring bool) error {
 	return nil
 }
 
+// ValidateRecurringWeekdays validates recurring weekdays array
+func ValidateRecurringWeekdays(weekdays []int) error {
+	if len(weekdays) == 0 {
+		return nil // Empty is valid (means all days or not used)
+	}
+
+	// Check each weekday is in valid range (0-6)
+	for _, day := range weekdays {
+		if day < 0 || day > 6 {
+			return fmt.Errorf("invalid weekday: %d (must be 0-6, where 0=Sunday, 6=Saturday)", day)
+		}
+	}
+
+	// Check for duplicates
+	seen := make(map[int]bool)
+	for _, day := range weekdays {
+		if seen[day] {
+			return fmt.Errorf("duplicate weekday found: %d", day)
+		}
+		seen[day] = true
+	}
+
+	return nil
+}
+
 // ValidateTodoItem validates all fields of a TodoItem
 type TodoItem interface {
 	GetTaskID() int
