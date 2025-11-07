@@ -42,12 +42,13 @@ type TodoItem struct {
 	Urgent     string    `json:"urgent"`
 
 	// Recurring task fields
-	IsRecurring       bool   `json:"isRecurring,omitempty"`       // Whether this is a recurring task
-	RecurringType     string `json:"recurringType,omitempty"`     // daily, weekly, monthly, yearly
-	RecurringInterval int    `json:"recurringInterval,omitempty"` // Interval (e.g., every 2 days, every 3 weeks)
-	RecurringWeekdays []int  `json:"recurringWeekdays,omitempty"` // For weekly: specific weekdays (0=Sun, 1=Mon...6=Sat). Empty means all days.
-	RecurringMaxCount int    `json:"recurringMaxCount,omitempty"` // Maximum number of times to repeat (0 = infinite)
-	CompletionCount   int    `json:"completionCount,omitempty"`   // Number of times completed
+	IsRecurring              bool     `json:"isRecurring,omitempty"`              // Whether this is a recurring task
+	RecurringType            string   `json:"recurringType,omitempty"`            // daily, weekly, monthly, yearly
+	RecurringInterval        int      `json:"recurringInterval,omitempty"`        // Interval (e.g., every 2 days, every 3 weeks)
+	RecurringWeekdays        []int    `json:"recurringWeekdays,omitempty"`        // For weekly: specific weekdays (0=Sun, 1=Mon...6=Sat). Empty means all days.
+	RecurringMaxCount        int      `json:"recurringMaxCount,omitempty"`        // Maximum number of times to repeat (0 = infinite)
+	CurrentPeriodCompletions []string `json:"currentPeriodCompletions,omitempty"` // Dates completed in current period (YYYY-MM-DD format)
+	CompletionCount          int      `json:"completionCount,omitempty"`          // Number of periods completed
 }
 
 type TodoStore interface {

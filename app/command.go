@@ -226,7 +226,90 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 
 			// Check if this is a recurring task
 			if task.IsRecurring {
-				// Increment completion count
+				currentDate := time.Now()
+				todayStr := currentDate.Format("2006-01-02")
+
+				// Special handling for weekday-specific recurring tasks
+				if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+					// Add today to current period completions if not already added
+					alreadyCompleted := false
+					for _, dateStr := range task.CurrentPeriodCompletions {
+						if dateStr == todayStr {
+							alreadyCompleted = true
+							break
+						}
+					}
+
+					if !alreadyCompleted {
+						task.CurrentPeriodCompletions = append(task.CurrentPeriodCompletions, todayStr)
+					}
+
+					// Check if the current period is now complete
+					if isPeriodCompleted(task) {
+						// Period completed! Increment completion count
+						task.CompletionCount++
+
+						// Check if max count is reached (0 means infinite)
+						if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
+							// Mark as completed - no more recurrences
+							task.Status = "completed"
+
+							err := store.Save(todos, false)
+							if err != nil {
+								return fmt.Errorf("failed to save updated todos: %w", err)
+							}
+
+							logger.Infof("Recurring task completed for the final time. Total periods: %d/%d", task.CompletionCount, task.RecurringMaxCount)
+							fmt.Printf("✅ Period completed! (%d/%d - Final period) 🎉\n", task.CompletionCount, task.RecurringMaxCount)
+							return nil
+						}
+
+						// Clear current period completions and start next period
+						task.CurrentPeriodCompletions = []string{}
+
+						// Calculate next period's first occurrence
+						nextTime := calculateNextWeekday(currentDate, task.RecurringWeekdays)
+						task.EndTime = nextTime
+						task.DueDate = nextTime.Format("2006-01-02")
+						task.Status = "pending"
+
+						err := store.Save(todos, false)
+						if err != nil {
+							return fmt.Errorf("failed to save updated todos: %w", err)
+						}
+
+						// Show count with max if specified
+						countDisplay := fmt.Sprintf("%d", task.CompletionCount)
+						if task.RecurringMaxCount > 0 {
+							countDisplay = fmt.Sprintf("%d/%d", task.CompletionCount, task.RecurringMaxCount)
+						}
+
+						logger.Infof("Period completed. Count: %s, Next period starts: %s", countDisplay, nextTime.Format("2006-01-02 15:04"))
+						fmt.Printf("✅ Period completed! (Count: %s) Next period starts: %s\n", countDisplay, nextTime.Format("2006-01-02 15:04"))
+						return nil
+					} else {
+						// Period not yet complete, find next date in current period
+						nextInPeriod, hasNext := findNextInCurrentPeriod(task, currentDate)
+						if hasNext {
+							task.EndTime = nextInPeriod
+							task.DueDate = nextInPeriod.Format("2006-01-02")
+							task.Status = "pending"
+
+							err := store.Save(todos, false)
+							if err != nil {
+								return fmt.Errorf("failed to save updated todos: %w", err)
+							}
+
+							progressDisplay := fmt.Sprintf("%d/%d in this period", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
+							logger.Infof("Sub-task completed. Progress: %s, Next: %s", progressDisplay, nextInPeriod.Format("2006-01-02 15:04"))
+							fmt.Printf("✅ Sub-task completed! (%s) Next: %s\n", progressDisplay, nextInPeriod.Format("2006-01-02 15:04"))
+							return nil
+						}
+					}
+				}
+
+				// For other recurring types (daily, simple weekly, monthly, yearly)
+				// Each completion counts as one period
 				task.CompletionCount++
 
 				// Check if max count is reached (0 means infinite)
@@ -346,6 +429,50 @@ func calculateNextWeekday(current time.Time, weekdays []int) time.Time {
 
 	// Fallback (should never reach here if weekdays is not empty)
 	return current.AddDate(0, 0, 7)
+}
+
+// findNextInCurrentPeriod finds the next date to complete in the current period
+// Returns the next date, or zero time if all dates in period are completed
+func findNextInCurrentPeriod(task *TodoItem, currentDate time.Time) (time.Time, bool) {
+	if len(task.RecurringWeekdays) == 0 {
+		return time.Time{}, false
+	}
+
+	// Build set of completed weekdays in current period
+	completedDates := make(map[string]bool)
+	for _, dateStr := range task.CurrentPeriodCompletions {
+		completedDates[dateStr] = true
+	}
+
+	// Get current week's start (Sunday)
+	weekStart := currentDate
+	for weekStart.Weekday() != time.Sunday {
+		weekStart = weekStart.AddDate(0, 0, -1)
+	}
+
+	// Check each required weekday in current week
+	for _, weekday := range task.RecurringWeekdays {
+		targetDate := weekStart.AddDate(0, 0, weekday)
+		dateStr := targetDate.Format("2006-01-02")
+
+		// If this date is not completed and is today or in the future
+		if !completedDates[dateStr] && !targetDate.Before(currentDate) {
+			return targetDate, true
+		}
+	}
+
+	return time.Time{}, false
+}
+
+// isPeriodCompleted checks if all required dates in the current period are completed
+func isPeriodCompleted(task *TodoItem) bool {
+	if len(task.RecurringWeekdays) == 0 {
+		// For non-weekday tasks, each completion is a period
+		return false
+	}
+
+	// Check if we have completions for all required weekdays
+	return len(task.CurrentPeriodCompletions) >= len(task.RecurringWeekdays)
 }
 
 func CreateTask(todos *[]TodoItem, todo *TodoItem) error {

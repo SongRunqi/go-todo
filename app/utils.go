@@ -18,12 +18,28 @@ func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
 		recurringIndicator := ""
 		if task.IsRecurring {
 			recurringIndicator = "🔄 "
-			if task.CompletionCount > 0 || task.RecurringMaxCount > 0 {
-				// Show count/max format if max is set, otherwise just count
+
+			// For weekday-specific recurring tasks, show period progress
+			if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+				periodProgress := strconv.Itoa(len(task.CurrentPeriodCompletions)) + "/" + strconv.Itoa(len(task.RecurringWeekdays))
+
+				// Show period count
 				if task.RecurringMaxCount > 0 {
-					recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "/" + strconv.Itoa(task.RecurringMaxCount) + ") "
+					recurringIndicator += "(" + periodProgress + " week, " + strconv.Itoa(task.CompletionCount) + "/" + strconv.Itoa(task.RecurringMaxCount) + " periods) "
+				} else if task.CompletionCount > 0 {
+					recurringIndicator += "(" + periodProgress + " week, " + strconv.Itoa(task.CompletionCount) + " periods) "
 				} else {
-					recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "x) "
+					recurringIndicator += "(" + periodProgress + " this week) "
+				}
+			} else {
+				// For other recurring types, show simple count
+				if task.CompletionCount > 0 || task.RecurringMaxCount > 0 {
+					// Show count/max format if max is set, otherwise just count
+					if task.RecurringMaxCount > 0 {
+						recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "/" + strconv.Itoa(task.RecurringMaxCount) + ") "
+					} else {
+						recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "x) "
+					}
 				}
 			}
 		}
