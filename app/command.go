@@ -600,6 +600,52 @@ func GetTask(todos *[]TodoItem, id int) error {
 				endTime = task.EndTime.Format("2006-01-02 15:04:05")
 			}
 
+			// Build recurring task info if applicable
+			recurringInfo := ""
+			if task.IsRecurring {
+				recurringInfo = "\n\n## 🔄 Recurring Task Details\n\n"
+				recurringInfo += fmt.Sprintf("- **Type:** %s\n", task.RecurringType)
+				recurringInfo += fmt.Sprintf("- **Interval:** Every %d %s\n", task.RecurringInterval, task.RecurringType)
+
+				if len(task.RecurringWeekdays) > 0 {
+					weekdayNames := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+					weekdayNamesZh := []string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}
+					days := []string{}
+					for _, wd := range task.RecurringWeekdays {
+						if wd >= 0 && wd <= 6 {
+							if i18n.T("field.task_id") == "Task ID" {
+								days = append(days, weekdayNames[wd])
+							} else {
+								days = append(days, weekdayNamesZh[wd])
+							}
+						}
+					}
+					recurringInfo += fmt.Sprintf("- **Weekdays:** %s\n", strings.Join(days, ", "))
+				}
+
+				// Show period progress for weekday-specific tasks
+				if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+					periodProgress := fmt.Sprintf("%d/%d", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
+					recurringInfo += fmt.Sprintf("- **Current Week Progress:** %s days completed\n", periodProgress)
+
+					if len(task.CurrentPeriodCompletions) > 0 {
+						recurringInfo += "- **Completed This Week:** " + strings.Join(task.CurrentPeriodCompletions, ", ") + "\n"
+					}
+				}
+
+				// Show total progress
+				if task.RecurringMaxCount > 0 {
+					recurringInfo += fmt.Sprintf("- **Total Progress:** %d/%d periods completed\n", task.CompletionCount, task.RecurringMaxCount)
+					remaining := task.RecurringMaxCount - task.CompletionCount
+					recurringInfo += fmt.Sprintf("- **Remaining:** %d periods\n", remaining)
+				} else {
+					if task.CompletionCount > 0 {
+						recurringInfo += fmt.Sprintf("- **Total Completed:** %d periods\n", task.CompletionCount)
+					}
+					recurringInfo += "- **Max Count:** Infinite ♾️\n"
+				}
+			}
+
 			md := fmt.Sprintf(`# %s
 
 - **%s:** %d
@@ -607,7 +653,7 @@ func GetTask(todos *[]TodoItem, id int) error {
 - **%s:** %s
 - **%s:** %s
 - **%s:** %s
-- **%s:** %s%s%s
+- **%s:** %s%s%s%s
 
 ## %s
 
@@ -635,6 +681,7 @@ func GetTask(todos *[]TodoItem, id int) error {
 					}
 					return ""
 				}(),
+				recurringInfo,
 				i18n.T("field.description"),
 				task.TaskDesc,
 				i18n.T("field.tips"), i18n.T("tip.edit_markdown"))
