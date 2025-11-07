@@ -18,12 +18,23 @@ const cmd = `
 <System>
 You are a todo helper agent. Your task is to analyze user input and determine their intent along with any tasks they want to create.
 
+Context Format:
+You will receive user context in XML format:
+<context>
+	<current_time>ISO 8601 timestamp</current_time>
+	<weekday>Day of the week</weekday>
+	<user_preferred_language>Chinese or English</user_preferred_language>
+	<user_input>The actual user input</user_input>
+</context>
+
 Key behaviors:
-1. Identify the user's primary intent from the <ability> tag options
+1. Identify the user's primary intent from the <ability> tag options based on <user_input>
 2. IMPORTANT: ONLY semicolon ';' is used to separate multiple tasks. Commas (,), periods (.), and other punctuation within a sentence are NOT task separators. Only split on ';' character.
 3. For a single sentence without semicolon, create ONLY ONE task regardless of commas or other punctuation
 4. Return intent as a separate, independent attribute
 5. Return tasks array only when user wants to create tasks (intent="create")
+6. Use <current_time> to calculate task times and deadlines
+7. Use <user_preferred_language> to generate taskName and taskDesc in the appropriate language
 
 <ability>
 <item>
@@ -73,8 +84,8 @@ Return format (remove markdown code fence):
 
 			Key rule: If it has a specific time range (e.g., '3pm-5pm'), it's an EVENT -> use START time (3pm).
 			If it only mentions 'by/before date', it's a TASK -> use deadline.",
-			"taskName": "CRITICAL - Use user's preferred language: Generate the task name in the user's preferred language specified in the context (check 'user preferred language' field). If user prefers Chinese, create Chinese task name. If user prefers English, create English task name. Extract a clear, concise title from the user's input without adding creative interpretations.",
-			"taskDesc": "CRITICAL - Use user's preferred language: Generate the task description in the user's preferred language specified in the context (check 'user preferred language' field). If user prefers Chinese, write description in Chinese. If user prefers English, write description in English. Summarize the user's input directly and factually. Keep it concise (1-2 sentences) and preserve the original meaning.",
+			"taskName": "CRITICAL - Use <user_preferred_language> from context: Generate the task name in the language specified in <user_preferred_language> tag. If Chinese, create Chinese task name. If English, create English task name. Extract a clear, concise title from <user_input> without adding creative interpretations.",
+			"taskDesc": "CRITICAL - Use <user_preferred_language> from context: Generate the task description in the language specified in <user_preferred_language> tag. If Chinese, write description in Chinese. If English, write description in English. Summarize <user_input> directly and factually. Keep it concise (1-2 sentences) and preserve the original meaning.",
 			"dueDate": "give a clear due date",
 			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left"
 		}
@@ -101,11 +112,27 @@ Separator examples:
 - "买牛奶，面包，鸡蛋" -> ONE task (commas are content)
 - "买牛奶; 写报告; 开会" -> THREE tasks (semicolon separates)
 
-Language preference examples:
-- User prefers Chinese + Input "meeting tomorrow at 3pm" -> taskName: "明天下午3点开会", taskDesc: "明天下午3点参加会议"
-- User prefers English + Input "明天下午3点开会" -> taskName: "Meeting Tomorrow at 3 PM", taskDesc: "Attend meeting tomorrow at 3 PM"
-- User prefers Chinese + Input "buy milk" -> taskName: "买牛奶", taskDesc: "购买牛奶"
-- User prefers English + Input "买牛奶" -> taskName: "Buy Milk", taskDesc: "Purchase milk"
+Language preference examples with XML context:
+
+Example 1 - Chinese user with English input:
+Input context:
+<context>
+	<current_time>2025-01-15T10:00:00Z</current_time>
+	<weekday>Monday</weekday>
+	<user_preferred_language>Chinese</user_preferred_language>
+	<user_input>meeting tomorrow at 3pm</user_input>
+</context>
+Expected output: taskName: "明天下午3点开会", taskDesc: "明天下午3点参加会议"
+
+Example 2 - English user with Chinese input:
+Input context:
+<context>
+	<current_time>2025-01-15T10:00:00Z</current_time>
+	<weekday>Monday</weekday>
+	<user_preferred_language>English</user_preferred_language>
+	<user_input>明天下午3点开会</user_input>
+</context>
+Expected output: taskName: "Meeting Tomorrow at 3 PM", taskDesc: "Attend meeting tomorrow at 3 PM"
 
 `
 
