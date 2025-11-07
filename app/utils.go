@@ -11,18 +11,30 @@ import (
 func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
 	var items = make([]AlfredItem, 0)
 	for i := 0; i < len(*todos); i++ {
+		task := &(*todos)[i]
 		item := AlfredItem{}
-		item.Title = "[" + strconv.Itoa((*todos)[i].TaskID) + "] 🎯" + (*todos)[i].TaskName + " " + (*todos)[i].Urgent
-		completed := (*todos)[i].Status == "completed"
+
+		// Add recurring indicator
+		recurringIndicator := ""
+		if task.IsRecurring {
+			recurringIndicator = "🔄 "
+			if task.CompletionCount > 0 {
+				recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "x) "
+			}
+		}
+
+		item.Title = "[" + strconv.Itoa(task.TaskID) + "] " + recurringIndicator + "🎯" + task.TaskName + " " + task.Urgent
+
+		completed := task.Status == "completed"
 		var prefix string = ""
 		if completed {
 			prefix = "✅"
 		} else {
 			prefix = "⌛️"
 		}
-		item.Subtitle = prefix + (*todos)[i].TaskDesc
-		item.Arg = strconv.Itoa((*todos)[i].TaskID)
-		item.Autocomplete = (*todos)[i].TaskName
+		item.Subtitle = prefix + task.TaskDesc
+		item.Arg = strconv.Itoa(task.TaskID)
+		item.Autocomplete = task.TaskName
 		items = append(items, item)
 	}
 	return &items

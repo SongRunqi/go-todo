@@ -123,6 +123,42 @@ func ValidateUser(user string) error {
 	return nil
 }
 
+// ValidateRecurringType validates recurring task type
+func ValidateRecurringType(recurringType string) error {
+	if recurringType == "" {
+		return nil // Optional for non-recurring tasks
+	}
+
+	validTypes := map[string]bool{
+		"daily":   true,
+		"weekly":  true,
+		"monthly": true,
+		"yearly":  true,
+	}
+
+	if !validTypes[recurringType] {
+		return fmt.Errorf("invalid recurring type: %s (must be daily, weekly, monthly, or yearly)", recurringType)
+	}
+	return nil
+}
+
+// ValidateRecurringInterval validates recurring interval
+func ValidateRecurringInterval(interval int, isRecurring bool) error {
+	if !isRecurring {
+		return nil // Not applicable for non-recurring tasks
+	}
+
+	if interval < 1 {
+		return fmt.Errorf("recurring interval must be at least 1, got: %d", interval)
+	}
+
+	if interval > 365 {
+		return fmt.Errorf("recurring interval too large: %d (max 365)", interval)
+	}
+
+	return nil
+}
+
 // ValidateTodoItem validates all fields of a TodoItem
 type TodoItem interface {
 	GetTaskID() int

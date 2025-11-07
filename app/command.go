@@ -63,7 +63,7 @@ Return format (remove markdown code fence):
 			"taskId": -1,
 			"user": "if not mentioned, You is default",
 			"createTime": "use current time",
-			"endTime": "CRITICAL - Use START time for EVENTS, deadline time for TASKS:
+			"endTime": "CRITICAL - Use START time for EVENTS, deadline time for TASKS, first occurrence time for RECURRING tasks:
 
 			Use START time for these EVENT types (time-sensitive, must attend at specific time):
 			- Meetings (会议): '3pm meeting' -> endTime=3pm START time
@@ -87,7 +87,10 @@ Return format (remove markdown code fence):
 			"taskName": "CRITICAL - Use <user_preferred_language> from context: Generate the task name in the language specified in <user_preferred_language> tag. If Chinese, create Chinese task name. If English, create English task name. Extract a clear, concise title from <user_input> without adding creative interpretations.",
 			"taskDesc": "CRITICAL - Use <user_preferred_language> from context: Generate the task description in the language specified in <user_preferred_language> tag. If Chinese, write description in Chinese. If English, write description in English. Summarize <user_input> directly and factually. Keep it concise (1-2 sentences) and preserve the original meaning.",
 			"dueDate": "give a clear due date",
-			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left"
+			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left",
+			"isRecurring": "true or false - Detect if this is a recurring/repeating task. Keywords: 每天 (daily), 每周 (weekly), 每月 (monthly), 每年 (yearly), daily, weekly, monthly, yearly, every day, every week, 定期 (regularly), 例行 (routine)",
+			"recurringType": "Only set if isRecurring=true. Values: 'daily', 'weekly', 'monthly', 'yearly'. Examples: 每天->daily, 每周->weekly, 每月->monthly, 每年->yearly",
+			"recurringInterval": "Only set if isRecurring=true. Integer for interval. Default 1. Examples: 每天->1, 每两天->2, 每周->1, 每两周->2"
 		}
 	]
 }
@@ -111,6 +114,16 @@ TASK types (use DEADLINE):
 Separator examples:
 - "买牛奶，面包，鸡蛋" -> ONE task (commas are content)
 - "买牛奶; 写报告; 开会" -> THREE tasks (semicolon separates)
+
+RECURRING task examples:
+- "每天早上9点站会" -> isRecurring=true, recurringType="daily", recurringInterval=1, endTime=tomorrow 9am
+- "每周一下午2点周会" -> isRecurring=true, recurringType="weekly", recurringInterval=1, endTime=next Monday 2pm
+- "每两周写周报" -> isRecurring=true, recurringType="weekly", recurringInterval=2
+- "每月1号交房租" -> isRecurring=true, recurringType="monthly", recurringInterval=1
+- "daily standup at 9am" -> isRecurring=true, recurringType="daily", recurringInterval=1
+- "weekly report every Friday" -> isRecurring=true, recurringType="weekly", recurringInterval=1
+- "例行检查设备" (without specific frequency) -> isRecurring=false (not specific enough)
+- "买牛奶" (one-time task) -> isRecurring=false
 
 Language preference examples with XML context:
 
@@ -196,11 +209,38 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == id {
-			taskName := (*todos)[i].TaskName
-			logger.Debugf("Completing task ID %d: %s - %s", id, (*todos)[i].TaskName, (*todos)[i].TaskDesc)
+			task := &(*todos)[i]
+			taskName := task.TaskName
+			logger.Debugf("Completing task ID %d: %s - %s", id, task.TaskName, task.TaskDesc)
 
-			// Set the task as completed (keep it in the main list)
-			(*todos)[i].Status = "completed"
+			// Check if this is a recurring task
+			if task.IsRecurring {
+				// Increment completion count
+				task.CompletionCount++
+
+				// Calculate next occurrence
+				nextTime := calculateNextOccurrence(task.EndTime, task.RecurringType, task.RecurringInterval)
+				task.EndTime = nextTime
+
+				// Update DueDate to reflect next occurrence
+				task.DueDate = nextTime.Format("2006-01-02")
+
+				// Keep status as pending for next occurrence
+				task.Status = "pending"
+
+				// Save updated todos
+				err := store.Save(todos, false)
+				if err != nil {
+					return fmt.Errorf("failed to save updated todos: %w", err)
+				}
+
+				logger.Infof("Recurring task completed. Count: %d, Next occurrence: %s", task.CompletionCount, nextTime.Format("2006-01-02 15:04"))
+				fmt.Printf("✅ Task completed! (Count: %d) Next occurrence: %s\n", task.CompletionCount, nextTime.Format("2006-01-02 15:04"))
+				return nil
+			}
+
+			// Non-recurring task: mark as completed (keep in main list)
+			task.Status = "completed"
 
 			// Save updated todos to original file
 			err := store.Save(todos, false)
@@ -214,6 +254,24 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 		}
 	}
 	return fmt.Errorf("task with ID %d not found", id)
+}
+
+// calculateNextOccurrence calculates the next occurrence time based on recurring type and interval
+func calculateNextOccurrence(current time.Time, recurringType string, interval int) time.Time {
+	switch recurringType {
+	case "daily":
+		return current.AddDate(0, 0, interval)
+	case "weekly":
+		return current.AddDate(0, 0, interval*7)
+	case "monthly":
+		return current.AddDate(0, interval, 0)
+	case "yearly":
+		return current.AddDate(interval, 0, 0)
+	default:
+		// Default to daily if type is unknown
+		logger.Warnf("Unknown recurring type: %s, defaulting to daily", recurringType)
+		return current.AddDate(0, 0, 1)
+	}
 }
 
 func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
@@ -238,6 +296,22 @@ func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
 		if err := validator.ValidateUser(todo.User); err != nil {
 			return err
 		}
+	}
+
+	// Validate recurring task fields
+	if todo.IsRecurring {
+		if err := validator.ValidateRecurringType(todo.RecurringType); err != nil {
+			return err
+		}
+		if err := validator.ValidateRecurringInterval(todo.RecurringInterval, todo.IsRecurring); err != nil {
+			return err
+		}
+		// Set default interval if not specified
+		if todo.RecurringInterval == 0 {
+			todo.RecurringInterval = 1
+		}
+		// Initialize completion count
+		todo.CompletionCount = 0
 	}
 
 	// Generate a unique TaskID

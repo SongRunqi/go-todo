@@ -40,6 +40,12 @@ type TodoItem struct {
 	Status     string    `json:"status"`
 	DueDate    string    `json:"dueDate"`
 	Urgent     string    `json:"urgent"`
+
+	// Recurring task fields
+	IsRecurring       bool   `json:"isRecurring,omitempty"`       // Whether this is a recurring task
+	RecurringType     string `json:"recurringType,omitempty"`     // daily, weekly, monthly, yearly
+	RecurringInterval int    `json:"recurringInterval,omitempty"` // Interval (e.g., every 2 days, every 3 weeks)
+	CompletionCount   int    `json:"completionCount,omitempty"`   // Number of times completed
 }
 
 type TodoStore interface {
