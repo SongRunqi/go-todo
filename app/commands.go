@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -145,13 +144,22 @@ func (c *AICommand) Execute(ctx *Context) error {
 	nowStr := ctx.CurrentTime.Format(time.RFC3339)
 	weekday := ctx.CurrentTime.Weekday().String()
 
-	loadedbytes, err := json.Marshal(*ctx.Todos)
-	if err != nil {
-		return fmt.Errorf("failed to marshal todos: %w", err)
+	// Determine user's preferred language for task creation
+	userLanguage := "English" // default
+	if ctx.Config.Language == "zh-CN" || ctx.Config.Language == "zh" {
+		userLanguage = "Chinese"
+	} else if ctx.Config.Language == "en" || ctx.Config.Language == "en-US" {
+		userLanguage = "English"
 	}
-	loadedTodos := string(loadedbytes)
 
-	contextStr := "current time is" + nowStr + " and today is " + weekday + ". user input: " + ctx.Args[1] + ", current todos: " + loadedTodos
+	// Build context in XML format for better structure and clarity
+	contextStr := fmt.Sprintf(`<context>
+	<current_time>%s</current_time>
+	<weekday>%s</weekday>
+	<user_preferred_language>%s</user_preferred_language>
+	<user_input>%s</user_input>
+</context>`, nowStr, weekday, userLanguage, ctx.Args[1])
+
 	logger.Debugf("AI context: %s", contextStr)
 
 	req := OpenAIRequest{

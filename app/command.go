@@ -3,6 +3,9 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/SongRunqi/go-todo/parser"
 	"github.com/SongRunqi/go-todo/internal/logger"
@@ -15,11 +18,23 @@ const cmd = `
 <System>
 You are a todo helper agent. Your task is to analyze user input and determine their intent along with any tasks they want to create.
 
+Context Format:
+You will receive user context in XML format:
+<context>
+	<current_time>ISO 8601 timestamp</current_time>
+	<weekday>Day of the week</weekday>
+	<user_preferred_language>Chinese or English</user_preferred_language>
+	<user_input>The actual user input</user_input>
+</context>
+
 Key behaviors:
-1. Identify the user's primary intent from the <ability> tag options
-2. If the user wants to create tasks, treat ';' as a separator for multiple tasks
-3. Return intent as a separate, independent attribute
-4. Return tasks array only when user wants to create tasks (intent="create")
+1. Identify the user's primary intent from the <ability> tag options based on <user_input>
+2. IMPORTANT: ONLY semicolon ';' is used to separate multiple tasks. Commas (,), periods (.), and other punctuation within a sentence are NOT task separators. Only split on ';' character.
+3. For a single sentence without semicolon, create ONLY ONE task regardless of commas or other punctuation
+4. Return intent as a separate, independent attribute
+5. Return tasks array only when user wants to create tasks (intent="create")
+6. Use <current_time> to calculate task times and deadlines
+7. Use <user_preferred_language> to generate taskName and taskDesc in the appropriate language
 
 <ability>
 <item>
@@ -48,16 +63,119 @@ Return format (remove markdown code fence):
 			"taskId": -1,
 			"user": "if not mentioned, You is default",
 			"createTime": "use current time",
-			"endTime": "place end time based on the current time",
-			"taskName": "Extract a clear, concise title from the user's input. Use key words from their message without adding creative interpretations.",
-			"taskDesc": "Summarize the user's input directly and factually. Use the exact words and intent from the user's message. Do not add creative interpretations or assumptions. Keep it concise (1-2 sentences) and preserve the original meaning.",
+			"endTime": "CRITICAL - Use START time for EVENTS, deadline time for TASKS, first occurrence time for RECURRING tasks:
+
+			Use START time for these EVENT types (time-sensitive, must attend at specific time):
+			- Meetings (会议): '3pm meeting' -> endTime=3pm START time, '3pm-5pm meeting' -> endTime=3pm (START not end)
+			- Classes/Training (课程/培训): '2pm training session' -> endTime=2pm START time, '2pm-4pm training' -> endTime=2pm
+			- Driving (开车): '3:00到5:00开车' -> endTime=3:00 (START time)
+			- Appointments (预约): 'doctor appointment at 10am' -> endTime=10am
+			- Interviews (面试): 'job interview at 9am' -> endTime=9am
+			- Transportation (交通): 'flight departs 8am', 'train at 3pm' -> use departure time
+			- Entertainment (娱乐): 'movie at 7pm', 'concert at 8pm' -> use start time
+			- Exams (考试): 'exam starts at 2pm' -> endTime=2pm
+			- Social events (社交): 'dinner at 6pm', 'party at 8pm' -> use start time
+			- Live events (直播): 'webinar starts 3pm' -> endTime=3pm
+			- Pick up/Drop off (接送): 'pick up kids at 4pm' -> endTime=4pm
+
+			Use DEADLINE time for TASK types (flexible, can complete anytime before deadline):
+			- Reports/Documents: 'submit report by Friday' -> use Friday as deadline
+			- Projects: 'finish project by month end' -> use deadline
+			- General todos: 'buy groceries' -> estimate reasonable deadline
+
+			Key rule: If it has a specific time range (e.g., '3pm-5pm'), it's an EVENT -> use START time (3pm).
+			If it only mentions 'by/before date', it's a TASK -> use deadline.",
+			"taskName": "CRITICAL - Use <user_preferred_language> from context: Generate the task name in the language specified in <user_preferred_language> tag. If Chinese, create Chinese task name. If English, create English task name. Extract a clear, concise title from <user_input> without adding creative interpretations.",
+			"taskDesc": "CRITICAL - Use <user_preferred_language> from context: Generate the task description in the language specified in <user_preferred_language> tag. If Chinese, write description in Chinese. If English, write description in English. Summarize <user_input> directly and factually. Keep it concise (1-2 sentences) and preserve the original meaning.",
 			"dueDate": "give a clear due date",
-			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left"
+			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left",
+			"isRecurring": "true or false - Detect if this is a recurring/repeating task. Keywords: 每天 (daily), 每周 (weekly), 每月 (monthly), 每年 (yearly), daily, weekly, monthly, yearly, every day, every week, 定期 (regularly), 例行 (routine)",
+			"recurringType": "Only set if isRecurring=true. Values: 'daily', 'weekly', 'monthly', 'yearly'. Examples: 每天->daily, 每周->weekly, 每月->monthly, 每年->yearly",
+			"recurringInterval": "Only set if isRecurring=true. Integer for interval. Default 1. Examples: 每天->1, 每两天->2, 每周->1, 每两周->2",
+			"recurringWeekdays": "Only set if isRecurring=true AND recurringType='weekly' AND task specifies specific weekdays. Array of integers where 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. Examples: 周一周三周五->[1,3,5], 周二周四->[2,4], Mon/Wed/Fri->[1,3,5], Tue/Thu->[2,4]. Leave empty for simple weekly (every week same day).",
+			"recurringMaxCount": "Only set if isRecurring=true AND user specifies a limited number of repetitions. Integer value for maximum repetitions (periods, not individual occurrences). 0 or omitted = infinite. IMPORTANT: For weekday-specific tasks, count means number of WEEKS, not individual days. Examples: 每天跑步30次->30, 每周健身12次->12, 连续10天打卡->10, 连续7周->7, 共8周->8, 连续4个月->4, daily exercise for 30 days->30, weekly meeting 12 times->12, for 12 weeks->12, Mon/Wed/Fri driving for 7 weeks->7. If no count specified, omit this field or use 0."
 		}
 	]
 }
 
 Note: Only include "tasks" array when intent is "create". For other intents, omit the tasks field or return empty array.
+
+Examples:
+EVENT types (use START time):
+- "明天下午3点到5点开会" -> endTime=tomorrow 3pm (meeting START, not 5pm)
+- "周三上午10点医生预约" -> endTime=Wed 10am (appointment time)
+- "下午2点培训课程" -> endTime=today 2pm (class START)
+- "明天早上9点面试" -> endTime=tomorrow 9am (interview time)
+- "晚上7点看电影" -> endTime=today 7pm (movie START)
+- "下午4点接孩子放学" -> endTime=today 4pm (pickup time)
+- "周一、周三、周五 3:00到5:00开车" -> isRecurring=true, recurringWeekdays=[1,3,5], endTime=next Monday 3:00 (START time, not 5:00)
+
+TASK types (use DEADLINE):
+- "周五前提交报告" -> endTime=Friday end of day (deadline)
+- "买牛奶，面包，鸡蛋" -> ONE task, estimate reasonable deadline
+- "月底前完成项目" -> endTime=end of month (deadline)
+
+Separator examples:
+- "买牛奶，面包，鸡蛋" -> ONE task (commas are content)
+- "买牛奶; 写报告; 开会" -> THREE tasks (semicolon separates)
+
+RECURRING task examples:
+- "每天早上9点站会" -> isRecurring=true, recurringType="daily", recurringInterval=1, endTime=tomorrow 9am
+- "每周一下午2点周会" -> isRecurring=true, recurringType="weekly", recurringInterval=1, endTime=next Monday 2pm
+- "每两周写周报" -> isRecurring=true, recurringType="weekly", recurringInterval=2
+- "每月1号交房租" -> isRecurring=true, recurringType="monthly", recurringInterval=1
+- "daily standup at 9am" -> isRecurring=true, recurringType="daily", recurringInterval=1
+- "weekly report every Friday" -> isRecurring=true, recurringType="weekly", recurringInterval=1
+- "周一、周三、周五去上课" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], endTime=next matching day
+- "周二周四晚上健身" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4]
+- "Mon/Wed/Fri team meeting" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5]
+- "Tuesday and Thursday gym" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4]
+- "每天跑步30次" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=30
+- "每周健身12次" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=12
+- "连续10天打卡" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=10
+- "daily exercise for 30 days" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=30
+- "weekly meeting 12 times" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=12
+
+COMPLEX recurring task examples (combining weekdays + time + count):
+- "周一、周三、周五 3:00到5:00开车，连续7周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=7, endTime=next Monday 3:00 (START time)
+- "周二周四上午10点培训，共8周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4], recurringMaxCount=8, endTime=next matching day 10:00
+- "Mon/Wed/Fri 2pm-4pm team meeting, 12 weeks" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=12, endTime=next Monday 2pm
+- "连续4个月每月1号交房租" -> isRecurring=true, recurringType="monthly", recurringInterval=1, recurringMaxCount=4
+- "连续6周每周五写周报" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=6
+
+Pattern recognition for "连续X周/月/年" (consecutive periods):
+- "连续7周" = recurringMaxCount=7, recurringType="weekly"
+- "连续10天" = recurringMaxCount=10, recurringType="daily"
+- "连续4个月" = recurringMaxCount=4, recurringType="monthly"
+- "连续2年" = recurringMaxCount=2, recurringType="yearly"
+- "共8周" = recurringMaxCount=8, recurringType="weekly"
+- "for 12 weeks" = recurringMaxCount=12, recurringType="weekly"
+- "for 30 days" = recurringMaxCount=30, recurringType="daily"
+
+- "例行检查设备" (without specific frequency) -> isRecurring=false (not specific enough)
+- "买牛奶" (one-time task) -> isRecurring=false
+
+Language preference examples with XML context:
+
+Example 1 - Chinese user with English input:
+Input context:
+<context>
+	<current_time>2025-01-15T10:00:00Z</current_time>
+	<weekday>Monday</weekday>
+	<user_preferred_language>Chinese</user_preferred_language>
+	<user_input>meeting tomorrow at 3pm</user_input>
+</context>
+Expected output: taskName: "明天下午3点开会", taskDesc: "明天下午3点参加会议"
+
+Example 2 - English user with Chinese input:
+Input context:
+<context>
+	<current_time>2025-01-15T10:00:00Z</current_time>
+	<weekday>Monday</weekday>
+	<user_preferred_language>English</user_preferred_language>
+	<user_input>明天下午3点开会</user_input>
+</context>
+Expected output: taskName: "Meeting Tomorrow at 3 PM", taskDesc: "Attend meeting tomorrow at 3 PM"
 
 `
 
@@ -121,49 +239,259 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == id {
-			taskName := (*todos)[i].TaskName
-			logger.Debugf("Completing task ID %d: %s - %s", id, (*todos)[i].TaskName, (*todos)[i].TaskDesc)
+			task := &(*todos)[i]
+			taskName := task.TaskName
+			logger.Debugf("Completing task ID %d: %s - %s", id, task.TaskName, task.TaskDesc)
 
-			// Set the task as completed
-			completedTask := (*todos)[i]
-			completedTask.Status = "completed"
+			// Check if this is a recurring task
+			if task.IsRecurring {
+				currentDate := time.Now()
+				todayStr := currentDate.Format("2006-01-02")
 
-			// Load existing backup todos
-			backupTodos, err := store.Load(true)
-			if err != nil {
-				return fmt.Errorf("failed to load backup: %w", err)
-			}
+				// Special handling for weekday-specific recurring tasks
+				if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+					// Add today to current period completions if not already added
+					alreadyCompleted := false
+					for _, dateStr := range task.CurrentPeriodCompletions {
+						if dateStr == todayStr {
+							alreadyCompleted = true
+							break
+						}
+					}
 
-			// Add completed task to backup
-			backupTodos = append(backupTodos, completedTask)
+					if !alreadyCompleted {
+						task.CurrentPeriodCompletions = append(task.CurrentPeriodCompletions, todayStr)
+					}
 
-			// Save completed task to backup file
-			err = store.Save(&backupTodos, true)
-			if err != nil {
-				return fmt.Errorf("failed to save to backup: %w", err)
-			}
+					// Check if the current period is now complete
+					if isPeriodCompleted(task) {
+						// Period completed! Increment completion count
+						task.CompletionCount++
 
-			// Remove completed task from original todos
-			newTodos := make([]TodoItem, 0)
-			for j := 0; j < len(*todos); j++ {
-				if j != i { // Skip the completed task
-					newTodos = append(newTodos, (*todos)[j])
+						// Check if max count is reached (0 means infinite)
+						if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
+							// Mark as completed - no more recurrences
+							task.Status = "completed"
+
+							err := store.Save(todos, false)
+							if err != nil {
+								return fmt.Errorf("failed to save updated todos: %w", err)
+							}
+
+							logger.Infof("Recurring task completed for the final time. Total periods: %d/%d", task.CompletionCount, task.RecurringMaxCount)
+							fmt.Printf("✅ Period completed! (%d/%d - Final period) 🎉\n", task.CompletionCount, task.RecurringMaxCount)
+							return nil
+						}
+
+						// Clear current period completions and start next period
+						task.CurrentPeriodCompletions = []string{}
+
+						// Calculate next period's first occurrence
+						nextTime := calculateNextWeekday(currentDate, task.RecurringWeekdays)
+						task.EndTime = nextTime
+						task.DueDate = nextTime.Format("2006-01-02")
+						task.Status = "pending"
+
+						err := store.Save(todos, false)
+						if err != nil {
+							return fmt.Errorf("failed to save updated todos: %w", err)
+						}
+
+						// Show count with max if specified
+						countDisplay := fmt.Sprintf("%d", task.CompletionCount)
+						if task.RecurringMaxCount > 0 {
+							countDisplay = fmt.Sprintf("%d/%d", task.CompletionCount, task.RecurringMaxCount)
+						}
+
+						logger.Infof("Period completed. Count: %s, Next period starts: %s", countDisplay, nextTime.Format("2006-01-02 15:04"))
+						fmt.Printf("✅ Period completed! (Count: %s) Next period starts: %s\n", countDisplay, nextTime.Format("2006-01-02 15:04"))
+						return nil
+					} else {
+						// Period not yet complete, find next date in current period
+						nextInPeriod, hasNext := findNextInCurrentPeriod(task, currentDate)
+						if hasNext {
+							task.EndTime = nextInPeriod
+							task.DueDate = nextInPeriod.Format("2006-01-02")
+							task.Status = "pending"
+
+							err := store.Save(todos, false)
+							if err != nil {
+								return fmt.Errorf("failed to save updated todos: %w", err)
+							}
+
+							progressDisplay := fmt.Sprintf("%d/%d in this period", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
+							logger.Infof("Sub-task completed. Progress: %s, Next: %s", progressDisplay, nextInPeriod.Format("2006-01-02 15:04"))
+							fmt.Printf("✅ Sub-task completed! (%s) Next: %s\n", progressDisplay, nextInPeriod.Format("2006-01-02 15:04"))
+							return nil
+						}
+					}
 				}
-			}
-			*todos = newTodos
 
-			// Save updated todos (without completed task) to original file
-			err = store.Save(todos, false)
+				// For other recurring types (daily, simple weekly, monthly, yearly)
+				// Each completion counts as one period
+				task.CompletionCount++
+
+				// Check if max count is reached (0 means infinite)
+				if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
+					// Mark as completed - no more recurrences
+					task.Status = "completed"
+
+					err := store.Save(todos, false)
+					if err != nil {
+						return fmt.Errorf("failed to save updated todos: %w", err)
+					}
+
+					logger.Infof("Recurring task completed for the final time. Total completions: %d/%d", task.CompletionCount, task.RecurringMaxCount)
+					fmt.Printf("✅ Task completed! (%d/%d - Final completion) 🎉\n", task.CompletionCount, task.RecurringMaxCount)
+					return nil
+				}
+
+				// Calculate next occurrence
+				nextTime := calculateNextOccurrence(task)
+				task.EndTime = nextTime
+
+				// Update DueDate to reflect next occurrence
+				task.DueDate = nextTime.Format("2006-01-02")
+
+				// Keep status as pending for next occurrence
+				task.Status = "pending"
+
+				// Save updated todos
+				err := store.Save(todos, false)
+				if err != nil {
+					return fmt.Errorf("failed to save updated todos: %w", err)
+				}
+
+				// Show count with max if specified
+				countDisplay := fmt.Sprintf("%d", task.CompletionCount)
+				if task.RecurringMaxCount > 0 {
+					countDisplay = fmt.Sprintf("%d/%d", task.CompletionCount, task.RecurringMaxCount)
+				}
+
+				logger.Infof("Recurring task completed. Count: %s, Next occurrence: %s", countDisplay, nextTime.Format("2006-01-02 15:04"))
+				fmt.Printf("✅ Task completed! (Count: %s) Next occurrence: %s\n", countDisplay, nextTime.Format("2006-01-02 15:04"))
+				return nil
+			}
+
+			// Non-recurring task: mark as completed (keep in main list)
+			task.Status = "completed"
+
+			// Save updated todos to original file
+			err := store.Save(todos, false)
 			if err != nil {
 				return fmt.Errorf("failed to save updated todos: %w", err)
 			}
 
-			logger.Debug("Task moved to backup and removed from active todos")
+			logger.Debug("Task marked as completed")
 			output.PrintTaskCompleted(id, taskName)
 			return nil
 		}
 	}
 	return fmt.Errorf("task with ID %d not found", id)
+}
+
+// calculateNextOccurrence calculates the next occurrence time based on recurring type and interval
+func calculateNextOccurrence(task *TodoItem) time.Time {
+	current := task.EndTime
+	recurringType := task.RecurringType
+	interval := task.RecurringInterval
+
+	switch recurringType {
+	case "daily":
+		return current.AddDate(0, 0, interval)
+
+	case "weekly":
+		// Check if specific weekdays are set
+		if len(task.RecurringWeekdays) > 0 {
+			return calculateNextWeekday(current, task.RecurringWeekdays)
+		}
+		// Default weekly behavior: add interval weeks
+		return current.AddDate(0, 0, interval*7)
+
+	case "monthly":
+		return current.AddDate(0, interval, 0)
+
+	case "yearly":
+		return current.AddDate(interval, 0, 0)
+
+	default:
+		// Default to daily if type is unknown
+		logger.Warnf("Unknown recurring type: %s, defaulting to daily", recurringType)
+		return current.AddDate(0, 0, 1)
+	}
+}
+
+// calculateNextWeekday finds the next occurrence for specific weekdays
+// weekdays is an array of integers (0=Sunday, 1=Monday, ..., 6=Saturday)
+func calculateNextWeekday(current time.Time, weekdays []int) time.Time {
+	if len(weekdays) == 0 {
+		return current.AddDate(0, 0, 7) // Default to next week same day
+	}
+
+	// Convert weekdays slice to map for quick lookup
+	weekdaySet := make(map[int]bool)
+	for _, day := range weekdays {
+		weekdaySet[day] = true
+	}
+
+	// Start from next day
+	next := current.AddDate(0, 0, 1)
+
+	// Search for the next matching weekday (max 7 days)
+	for i := 0; i < 7; i++ {
+		currentWeekday := int(next.Weekday())
+		if weekdaySet[currentWeekday] {
+			return next
+		}
+		next = next.AddDate(0, 0, 1)
+	}
+
+	// Fallback (should never reach here if weekdays is not empty)
+	return current.AddDate(0, 0, 7)
+}
+
+// findNextInCurrentPeriod finds the next date to complete in the current period
+// Returns the next date, or zero time if all dates in period are completed
+func findNextInCurrentPeriod(task *TodoItem, currentDate time.Time) (time.Time, bool) {
+	if len(task.RecurringWeekdays) == 0 {
+		return time.Time{}, false
+	}
+
+	// Build set of completed weekdays in current period
+	completedDates := make(map[string]bool)
+	for _, dateStr := range task.CurrentPeriodCompletions {
+		completedDates[dateStr] = true
+	}
+
+	// Get current week's start (Sunday)
+	weekStart := currentDate
+	for weekStart.Weekday() != time.Sunday {
+		weekStart = weekStart.AddDate(0, 0, -1)
+	}
+
+	// Check each required weekday in current week
+	for _, weekday := range task.RecurringWeekdays {
+		targetDate := weekStart.AddDate(0, 0, weekday)
+		dateStr := targetDate.Format("2006-01-02")
+
+		// If this date is not completed and is today or in the future
+		if !completedDates[dateStr] && !targetDate.Before(currentDate) {
+			return targetDate, true
+		}
+	}
+
+	return time.Time{}, false
+}
+
+// isPeriodCompleted checks if all required dates in the current period are completed
+func isPeriodCompleted(task *TodoItem) bool {
+	if len(task.RecurringWeekdays) == 0 {
+		// For non-weekday tasks, each completion is a period
+		return false
+	}
+
+	// Check if we have completions for all required weekdays
+	return len(task.CurrentPeriodCompletions) >= len(task.RecurringWeekdays)
 }
 
 func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
@@ -188,6 +516,28 @@ func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
 		if err := validator.ValidateUser(todo.User); err != nil {
 			return err
 		}
+	}
+
+	// Validate recurring task fields
+	if todo.IsRecurring {
+		if err := validator.ValidateRecurringType(todo.RecurringType); err != nil {
+			return err
+		}
+		if err := validator.ValidateRecurringInterval(todo.RecurringInterval, todo.IsRecurring); err != nil {
+			return err
+		}
+		if err := validator.ValidateRecurringWeekdays(todo.RecurringWeekdays); err != nil {
+			return err
+		}
+		if err := validator.ValidateRecurringMaxCount(todo.RecurringMaxCount, todo.IsRecurring); err != nil {
+			return err
+		}
+		// Set default interval if not specified
+		if todo.RecurringInterval == 0 {
+			todo.RecurringInterval = 1
+		}
+		// Initialize completion count
+		todo.CompletionCount = 0
 	}
 
 	// Generate a unique TaskID
@@ -250,6 +600,52 @@ func GetTask(todos *[]TodoItem, id int) error {
 				endTime = task.EndTime.Format("2006-01-02 15:04:05")
 			}
 
+			// Build recurring task info if applicable
+			recurringInfo := ""
+			if task.IsRecurring {
+				recurringInfo = "\n\n## 🔄 Recurring Task Details\n\n"
+				recurringInfo += fmt.Sprintf("- **Type:** %s\n", task.RecurringType)
+				recurringInfo += fmt.Sprintf("- **Interval:** Every %d %s\n", task.RecurringInterval, task.RecurringType)
+
+				if len(task.RecurringWeekdays) > 0 {
+					weekdayNames := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+					weekdayNamesZh := []string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}
+					days := []string{}
+					for _, wd := range task.RecurringWeekdays {
+						if wd >= 0 && wd <= 6 {
+							if i18n.T("field.task_id") == "Task ID" {
+								days = append(days, weekdayNames[wd])
+							} else {
+								days = append(days, weekdayNamesZh[wd])
+							}
+						}
+					}
+					recurringInfo += fmt.Sprintf("- **Weekdays:** %s\n", strings.Join(days, ", "))
+				}
+
+				// Show period progress for weekday-specific tasks
+				if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+					periodProgress := fmt.Sprintf("%d/%d", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
+					recurringInfo += fmt.Sprintf("- **Current Week Progress:** %s days completed\n", periodProgress)
+
+					if len(task.CurrentPeriodCompletions) > 0 {
+						recurringInfo += "- **Completed This Week:** " + strings.Join(task.CurrentPeriodCompletions, ", ") + "\n"
+					}
+				}
+
+				// Show total progress
+				if task.RecurringMaxCount > 0 {
+					recurringInfo += fmt.Sprintf("- **Total Progress:** %d/%d periods completed\n", task.CompletionCount, task.RecurringMaxCount)
+					remaining := task.RecurringMaxCount - task.CompletionCount
+					recurringInfo += fmt.Sprintf("- **Remaining:** %d periods\n", remaining)
+				} else {
+					if task.CompletionCount > 0 {
+						recurringInfo += fmt.Sprintf("- **Total Completed:** %d periods\n", task.CompletionCount)
+					}
+					recurringInfo += "- **Max Count:** Infinite ♾️\n"
+				}
+			}
+
 			md := fmt.Sprintf(`# %s
 
 - **%s:** %d
@@ -257,7 +653,7 @@ func GetTask(todos *[]TodoItem, id int) error {
 - **%s:** %s
 - **%s:** %s
 - **%s:** %s
-- **%s:** %s%s%s
+- **%s:** %s%s%s%s
 
 ## %s
 
@@ -285,6 +681,7 @@ func GetTask(todos *[]TodoItem, id int) error {
 					}
 					return ""
 				}(),
+				recurringInfo,
 				i18n.T("field.description"),
 				task.TaskDesc,
 				i18n.T("field.tips"), i18n.T("tip.edit_markdown"))
@@ -305,6 +702,9 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 		return fmt.Errorf("failed to parse task update: %w", err)
 	}
 
+	// Normalize status first to handle Chinese/English variations
+	normalizedStatus := validator.NormalizeStatus(parsedTask.Status)
+
 	// Convert parser.TodoItem to main.TodoItem
 	updatedTask := TodoItem{
 		TaskID:     parsedTask.TaskID,
@@ -313,7 +713,7 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 		User:       parsedTask.User,
 		TaskName:   parsedTask.TaskName,
 		TaskDesc:   parsedTask.TaskDesc,
-		Status:     parsedTask.Status,
+		Status:     normalizedStatus,
 		DueDate:    parsedTask.DueDate,
 		Urgent:     parsedTask.Urgent,
 	}
@@ -389,25 +789,57 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 		return err
 	}
 
-	found := false
-	newTodos := make([]TodoItem, 0)
+	var deletedTask *TodoItem
+	taskIndex := -1
 	for i := 0; i < len(*todos); i++ {
 		if (*todos)[i].TaskID == id {
-			found = true
-			continue
+			deletedTask = &(*todos)[i]
+			taskIndex = i
+			break
 		}
-		newTodos = append(newTodos, (*todos)[i])
 	}
 
-	if !found {
+	if deletedTask == nil {
 		return fmt.Errorf("task with ID %d not found", id)
 	}
 
-	err := store.Save(&newTodos, false)
+	taskName := deletedTask.TaskName
+	logger.Debugf("Deleting task ID %d: %s", id, taskName)
+
+	// Mark task as deleted
+	deletedTask.Status = "deleted"
+
+	// Load existing backup todos
+	backupTodos, err := store.Load(true)
+	if err != nil {
+		return fmt.Errorf("failed to load backup: %w", err)
+	}
+
+	// Add deleted task to backup
+	backupTodos = append(backupTodos, *deletedTask)
+
+	// Save deleted task to backup file
+	err = store.Save(&backupTodos, true)
+	if err != nil {
+		return fmt.Errorf("failed to save to backup: %w", err)
+	}
+
+	// Remove task from main todos
+	newTodos := make([]TodoItem, 0)
+	for i := 0; i < len(*todos); i++ {
+		if i != taskIndex {
+			newTodos = append(newTodos, (*todos)[i])
+		}
+	}
+	*todos = newTodos
+
+	// Save updated todos
+	err = store.Save(todos, false)
 	if err != nil {
 		return fmt.Errorf("failed to save after deletion: %w", err)
 	}
 
+	logger.Debug("Task moved to backup with 'deleted' status")
 	output.PrintTaskDeleted(id)
 	return nil
 }
@@ -465,4 +897,285 @@ func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int, store *File
 	logger.Debug("Task restored successfully")
 	output.PrintTaskRestored(id, restoredTask.TaskName)
 	return nil
+}
+
+func CopyCompletedTasks(todos *[]TodoItem, store *FileTodoStore, weekOnly bool) error {
+	// Collect completed tasks from both main list and backup
+	completedTasks := make([]TodoItem, 0)
+
+	// Get completed tasks from main list
+	for _, task := range *todos {
+		if task.Status == "completed" {
+			completedTasks = append(completedTasks, task)
+		}
+	}
+
+	// Get completed tasks from backup
+	backupTodos, err := store.Load(true)
+	if err != nil {
+		logger.Warnf("Failed to load backup todos: %v", err)
+	} else {
+		for _, task := range backupTodos {
+			if task.Status == "completed" {
+				completedTasks = append(completedTasks, task)
+			}
+		}
+	}
+
+	if len(completedTasks) == 0 {
+		fmt.Println("No completed tasks found")
+		return nil
+	}
+
+	// Group tasks by week
+	tasksByWeek := make(map[string][]string)
+	now := time.Now()
+
+	for _, task := range completedTasks {
+		// Use EndTime to determine the week
+		year, week := task.EndTime.ISOWeek()
+		weekKey := fmt.Sprintf("%d-W%02d", year, week)
+
+		// If weekOnly is true, only include current week
+		if weekOnly {
+			currentYear, currentWeek := now.ISOWeek()
+			if year != currentYear || week != currentWeek {
+				continue
+			}
+		}
+
+		if _, exists := tasksByWeek[weekKey]; !exists {
+			tasksByWeek[weekKey] = make([]string, 0)
+		}
+		tasksByWeek[weekKey] = append(tasksByWeek[weekKey], task.TaskName)
+	}
+
+	if len(tasksByWeek) == 0 {
+		fmt.Println("No completed tasks found for the specified time period")
+		return nil
+	}
+
+	// Sort weeks
+	weeks := make([]string, 0, len(tasksByWeek))
+	for week := range tasksByWeek {
+		weeks = append(weeks, week)
+	}
+	sort.Strings(weeks)
+
+	// Format output
+	output := ""
+	for _, week := range weeks {
+		output += fmt.Sprintf("=== %s ===\n", week)
+		for i, taskName := range tasksByWeek[week] {
+			output += fmt.Sprintf("%d. %s\n", i+1, taskName)
+		}
+		output += "\n"
+	}
+
+	// Print to stdout (can be piped to clipboard tools like pbcopy or xclip)
+	fmt.Print(output)
+
+	logger.Infof("Copied %d completed tasks from %d week(s)", len(completedTasks), len(weeks))
+	return nil
+}
+
+func CompactTasks(store *FileTodoStore, period string) error {
+	// Validate period
+	if period != "week" && period != "month" {
+		return fmt.Errorf("invalid period: %s (must be 'week' or 'month')", period)
+	}
+
+	// Load backup tasks
+	backupTodos, err := store.Load(true)
+	if err != nil {
+		return fmt.Errorf("failed to load backup: %w", err)
+	}
+
+	// Group tasks by period
+	type PeriodTasks struct {
+		Tasks      []TodoItem
+		PeriodKey  string
+		StartTime  time.Time
+		EndTime    time.Time
+	}
+
+	tasksByPeriod := make(map[string]*PeriodTasks)
+	tasksToRemove := make(map[int]bool) // Track task indices to remove
+
+	// Group completed and deleted tasks by period
+	for i, task := range backupTodos {
+		if task.Status != "completed" && task.Status != "deleted" {
+			continue
+		}
+
+		periodKey := getPeriodKey(task.EndTime, period)
+		if _, exists := tasksByPeriod[periodKey]; !exists {
+			tasksByPeriod[periodKey] = &PeriodTasks{
+				Tasks:     make([]TodoItem, 0),
+				PeriodKey: periodKey,
+			}
+		}
+		tasksByPeriod[periodKey].Tasks = append(tasksByPeriod[periodKey].Tasks, task)
+		tasksToRemove[i] = true
+
+		// Track time range
+		if tasksByPeriod[periodKey].StartTime.IsZero() || task.EndTime.Before(tasksByPeriod[periodKey].StartTime) {
+			tasksByPeriod[periodKey].StartTime = task.EndTime
+		}
+		if tasksByPeriod[periodKey].EndTime.IsZero() || task.EndTime.After(tasksByPeriod[periodKey].EndTime) {
+			tasksByPeriod[periodKey].EndTime = task.EndTime
+		}
+	}
+
+	if len(tasksByPeriod) == 0 {
+		fmt.Println("No completed or deleted tasks found in backup")
+		return nil
+	}
+
+	// Sort periods
+	periods := make([]string, 0, len(tasksByPeriod))
+	for p := range tasksByPeriod {
+		periods = append(periods, p)
+	}
+	sort.Strings(periods)
+
+	fmt.Println("==============================================")
+	fmt.Printf("Compacting tasks by %s using AI...\n", period)
+	fmt.Println("==============================================\n")
+
+	// Generate summaries for each period
+	summaryTasks := make([]TodoItem, 0)
+	totalCompacted := 0
+
+	for _, periodKey := range periods {
+		periodData := tasksByPeriod[periodKey]
+		tasks := periodData.Tasks
+
+		fmt.Printf("📅 Processing %s (%d tasks)...\n", periodKey, len(tasks))
+
+		// Prepare task list for AI
+		taskList := ""
+		completedCount := 0
+		deletedCount := 0
+		for _, task := range tasks {
+			taskList += fmt.Sprintf("- %s (status: %s)\n", task.TaskName, task.Status)
+			if task.Status == "completed" {
+				completedCount++
+			} else if task.Status == "deleted" {
+				deletedCount++
+			}
+		}
+
+		// Call AI to generate summary
+		prompt := fmt.Sprintf(`Please create a concise and friendly summary for the following tasks from %s.
+
+Time period: %s
+Total tasks: %d (completed: %d, deleted: %d)
+
+Tasks:
+%s
+
+Please provide:
+1. A brief title/name for this period (max 50 characters)
+2. A friendly summary paragraph (2-3 sentences) describing the main accomplishments and activities
+
+Format your response as:
+Title: [your title here]
+Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount, deletedCount, taskList)
+
+		req := OpenAIRequest{
+			Model: "deepseek-chat",
+			Messages: []Msg{
+				{Role: "user", Content: prompt},
+			},
+		}
+
+		// Show spinner during AI request
+		spin := output.NewAISpinner()
+		spin.Start()
+
+		aiResponse, err := Chat(req)
+		spin.Stop()
+
+		if err != nil {
+			logger.Warnf("Failed to generate AI summary for %s: %v", periodKey, err)
+			// Create a simple summary without AI
+			aiResponse = fmt.Sprintf("Title: Tasks Summary - %s\nSummary: Completed %d tasks and managed %d items during this period.",
+				periodKey, completedCount, len(tasks))
+		}
+
+		// Parse AI response
+		title, summary := parseAISummaryResponse(aiResponse)
+		if title == "" {
+			title = fmt.Sprintf("Tasks Summary - %s", periodKey)
+		}
+		if summary == "" {
+			summary = fmt.Sprintf("Period: %s. Completed %d tasks, deleted %d tasks.", periodKey, completedCount, deletedCount)
+		}
+
+		fmt.Printf("   ✅ Generated summary: %s\n\n", title)
+
+		// Create summary task
+		summaryTask := TodoItem{
+			TaskID:     0, // Will be set when added to main list if needed
+			CreateTime: periodData.StartTime,
+			EndTime:    periodData.EndTime,
+			User:       "System",
+			TaskName:   title,
+			TaskDesc:   summary,
+			Status:     "completed",
+			DueDate:    periodKey,
+			Urgent:     "low",
+		}
+
+		summaryTasks = append(summaryTasks, summaryTask)
+		totalCompacted += len(tasks)
+	}
+
+	// Remove original tasks from backup and add summaries
+	newBackupTodos := make([]TodoItem, 0)
+	for i, task := range backupTodos {
+		if !tasksToRemove[i] {
+			newBackupTodos = append(newBackupTodos, task)
+		}
+	}
+
+	// Add summary tasks to backup
+	newBackupTodos = append(newBackupTodos, summaryTasks...)
+
+	// Save updated backup
+	err = store.Save(&newBackupTodos, true)
+	if err != nil {
+		return fmt.Errorf("failed to save compacted backup: %w", err)
+	}
+
+	fmt.Println("==============================================")
+	fmt.Printf("✅ Successfully compacted %d tasks into %d summaries\n", totalCompacted, len(summaryTasks))
+	fmt.Println("==============================================")
+
+	logger.Infof("Compacted %d tasks into %d summaries by %s", totalCompacted, len(summaryTasks), period)
+	return nil
+}
+
+// parseAISummaryResponse extracts title and summary from AI response
+func parseAISummaryResponse(response string) (title, summary string) {
+	lines := strings.Split(response, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Title:") {
+			title = strings.TrimSpace(strings.TrimPrefix(line, "Title:"))
+		} else if strings.HasPrefix(line, "Summary:") {
+			summary = strings.TrimSpace(strings.TrimPrefix(line, "Summary:"))
+		}
+	}
+	return title, summary
+}
+
+func getPeriodKey(t time.Time, period string) string {
+	if period == "week" {
+		year, week := t.ISOWeek()
+		return fmt.Sprintf("%d-W%02d", year, week)
+	} else { // month
+		return fmt.Sprintf("%d-%02d", t.Year(), t.Month())
+	}
 }

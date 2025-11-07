@@ -30,14 +30,57 @@ func ValidateTaskName(name string) error {
 // ValidateStatus validates that status is one of the allowed values
 func ValidateStatus(status string) error {
 	validStatuses := map[string]bool{
-		"pending":   true,
-		"completed": true,
+		"pending":     true,
+		"completed":   true,
+		"in_progress": true,
+		"deleted":     true,
 	}
 
 	if !validStatuses[status] {
 		return fmt.Errorf(i18n.T("validation.invalid_status"), status)
 	}
 	return nil
+}
+
+// NormalizeStatus maps common status terms (Chinese/English) to system-defined statuses
+func NormalizeStatus(status string) string {
+	statusMap := map[string]string{
+		// English variations
+		"pending":     "pending",
+		"todo":        "pending",
+		"待处理":        "pending",
+		"待办":         "pending",
+
+		// In progress variations
+		"in_progress": "in_progress",
+		"in progress": "in_progress",
+		"ing":         "in_progress",
+		"进行中":        "in_progress",
+		"正在进行中":      "in_progress",
+		"doing":       "in_progress",
+
+		// Completed variations
+		"completed":   "completed",
+		"done":        "completed",
+		"finished":    "completed",
+		"已完成":        "completed",
+		"完成":         "completed",
+
+		// Deleted
+		"deleted":     "deleted",
+		"已删除":        "deleted",
+	}
+
+	// Convert to lowercase for case-insensitive matching
+	normalizedInput := strings.ToLower(strings.TrimSpace(status))
+
+	// Check if there's a direct mapping
+	if mapped, ok := statusMap[normalizedInput]; ok {
+		return mapped
+	}
+
+	// If no mapping found, return original status
+	return status
 }
 
 // ValidateUrgency validates that urgency is one of the allowed values
@@ -77,6 +120,91 @@ func ValidateUser(user string) error {
 	if len(trimmed) > 100 {
 		return fmt.Errorf(i18n.T("validation.user_name_too_long"), len(trimmed))
 	}
+	return nil
+}
+
+// ValidateRecurringType validates recurring task type
+func ValidateRecurringType(recurringType string) error {
+	if recurringType == "" {
+		return nil // Optional for non-recurring tasks
+	}
+
+	validTypes := map[string]bool{
+		"daily":   true,
+		"weekly":  true,
+		"monthly": true,
+		"yearly":  true,
+	}
+
+	if !validTypes[recurringType] {
+		return fmt.Errorf("invalid recurring type: %s (must be daily, weekly, monthly, or yearly)", recurringType)
+	}
+	return nil
+}
+
+// ValidateRecurringInterval validates recurring interval
+func ValidateRecurringInterval(interval int, isRecurring bool) error {
+	if !isRecurring {
+		return nil // Not applicable for non-recurring tasks
+	}
+
+	if interval < 1 {
+		return fmt.Errorf("recurring interval must be at least 1, got: %d", interval)
+	}
+
+	if interval > 365 {
+		return fmt.Errorf("recurring interval too large: %d (max 365)", interval)
+	}
+
+	return nil
+}
+
+// ValidateRecurringWeekdays validates recurring weekdays array
+func ValidateRecurringWeekdays(weekdays []int) error {
+	if len(weekdays) == 0 {
+		return nil // Empty is valid (means all days or not used)
+	}
+
+	// Check each weekday is in valid range (0-6)
+	for _, day := range weekdays {
+		if day < 0 || day > 6 {
+			return fmt.Errorf("invalid weekday: %d (must be 0-6, where 0=Sunday, 6=Saturday)", day)
+		}
+	}
+
+	// Check for duplicates
+	seen := make(map[int]bool)
+	for _, day := range weekdays {
+		if seen[day] {
+			return fmt.Errorf("duplicate weekday found: %d", day)
+		}
+		seen[day] = true
+	}
+
+	return nil
+}
+
+// ValidateRecurringMaxCount validates recurring max count
+func ValidateRecurringMaxCount(maxCount int, isRecurring bool) error {
+	if !isRecurring {
+		return nil // Not applicable for non-recurring tasks
+	}
+
+	// 0 or not set means infinite, which is valid
+	if maxCount == 0 {
+		return nil
+	}
+
+	// Max count must be positive if set
+	if maxCount < 0 {
+		return fmt.Errorf("recurring max count cannot be negative: %d", maxCount)
+	}
+
+	// Reasonable upper limit to prevent abuse
+	if maxCount > 10000 {
+		return fmt.Errorf("recurring max count too large: %d (max 10000)", maxCount)
+	}
+
 	return nil
 }
 
