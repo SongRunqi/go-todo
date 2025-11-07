@@ -63,6 +63,7 @@ Return format (remove markdown code fence):
 			"taskId": -1,
 			"user": "if not mentioned, You is default",
 			"createTime": "use current time",
+			"eventDuration": "IMPORTANT - Duration in nanoseconds for events with time ranges. Examples: '2pm-3pm' -> 3600000000000 (1 hour), '2pm-4:30pm' -> 9000000000000 (2.5 hours), '10:00-11:00' -> 3600000000000. Leave 0 or omit if no end time specified. Calculate: (end_time - start_time) in nanoseconds. 1 hour = 3600000000000ns, 1 minute = 60000000000ns",
 			"endTime": "CRITICAL - Use START time for EVENTS, deadline time for TASKS, first occurrence time for RECURRING tasks:
 
 			Use START time for these EVENT types (time-sensitive, must attend at specific time):
@@ -101,14 +102,15 @@ Return format (remove markdown code fence):
 Note: Only include "tasks" array when intent is "create". For other intents, omit the tasks field or return empty array.
 
 Examples:
-EVENT types (use START time):
-- "明天下午3点到5点开会" -> endTime=tomorrow 3pm (meeting START, not 5pm)
-- "周三上午10点医生预约" -> endTime=Wed 10am (appointment time)
-- "下午2点培训课程" -> endTime=today 2pm (class START)
-- "明天早上9点面试" -> endTime=tomorrow 9am (interview time)
-- "晚上7点看电影" -> endTime=today 7pm (movie START)
-- "下午4点接孩子放学" -> endTime=today 4pm (pickup time)
-- "周一、周三、周五 3:00到5:00开车" -> isRecurring=true, recurringWeekdays=[1,3,5], endTime=next Monday 3:00 (START time, not 5:00)
+EVENT types (use START time + eventDuration):
+- "明天下午3点到5点开会" -> endTime=tomorrow 3pm (meeting START, not 5pm), eventDuration=7200000000000 (2 hours)
+- "周三上午10点医生预约" -> endTime=Wed 10am (appointment time), eventDuration=0 (no end time specified)
+- "下午2点到3点培训课程" -> endTime=today 2pm (class START), eventDuration=3600000000000 (1 hour)
+- "明天早上9点面试" -> endTime=tomorrow 9am (interview time), eventDuration=0
+- "晚上7点到9点看电影" -> endTime=today 7pm (movie START), eventDuration=7200000000000 (2 hours)
+- "下午4点接孩子放学" -> endTime=today 4pm (pickup time), eventDuration=0
+- "周一、周三、周五 3:00到5:00开车" -> isRecurring=true, recurringWeekdays=[1,3,5], endTime=next Monday 3:00 (START time), eventDuration=7200000000000 (2 hours)
+- "周三、周五下午2点到3点上课" -> isRecurring=true, recurringWeekdays=[3,5], endTime=next Wed 2pm, eventDuration=3600000000000 (1 hour)
 
 TASK types (use DEADLINE):
 - "周五前提交报告" -> endTime=Friday end of day (deadline)
@@ -136,10 +138,10 @@ RECURRING task examples:
 - "daily exercise for 30 days" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=30
 - "weekly meeting 12 times" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=12
 
-COMPLEX recurring task examples (combining weekdays + time + count):
-- "周一、周三、周五 3:00到5:00开车，连续7周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=7, endTime=next Monday 3:00 (START time)
-- "周二周四上午10点培训，共8周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4], recurringMaxCount=8, endTime=next matching day 10:00
-- "Mon/Wed/Fri 2pm-4pm team meeting, 12 weeks" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=12, endTime=next Monday 2pm
+COMPLEX recurring task examples (combining weekdays + time + count + duration):
+- "周一、周三、周五 3:00到5:00开车，连续7周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=7, endTime=next Monday 3:00 (START time), eventDuration=7200000000000 (2 hours)
+- "周二周四上午10点到11点培训，共8周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4], recurringMaxCount=8, endTime=next matching day 10:00, eventDuration=3600000000000 (1 hour)
+- "Mon/Wed/Fri 2pm-4pm team meeting, 12 weeks" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=12, endTime=next Monday 2pm, eventDuration=7200000000000 (2 hours)
 - "连续4个月每月1号交房租" -> isRecurring=true, recurringType="monthly", recurringInterval=1, recurringMaxCount=4
 - "连续6周每周五写周报" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=6
 
@@ -243,36 +245,34 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 			taskName := task.TaskName
 			logger.Debugf("Completing task ID %d: %s - %s", id, task.TaskName, task.TaskDesc)
 
-			// Check if this is a recurring task
-			if task.IsRecurring {
-				currentDate := time.Now()
-				todayStr := currentDate.Format("2006-01-02")
+			// Handle recurring tasks with new occurrence-based model
+			if task.IsRecurring && len(task.OccurrenceHistory) > 0 {
+				// Find the current occurrence to complete
+				currentOcc, _ := GetCurrentOccurrence(task)
 
-				// Special handling for weekday-specific recurring tasks
+				// If no current due occurrence, try to find next pending (allow early completion)
+				if currentOcc == nil {
+					currentOcc, _ = GetNextPendingOccurrence(task)
+				}
+
+				if currentOcc == nil {
+					return fmt.Errorf("no pending occurrence found to complete")
+				}
+
+				// Mark this occurrence as completed
+				currentOcc.Status = "completed"
+				currentOcc.CompletedAt = time.Now()
+				logger.Infof("Marked occurrence at %s as completed", currentOcc.ScheduledTime.Format("2006-01-02 15:04"))
+
+				// For weekday-specific weekly tasks, check if the period is complete
 				if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
-					// Add today to current period completions if not already added
-					alreadyCompleted := false
-					for _, dateStr := range task.CurrentPeriodCompletions {
-						if dateStr == todayStr {
-							alreadyCompleted = true
-							break
-						}
-					}
-
-					if !alreadyCompleted {
-						task.CurrentPeriodCompletions = append(task.CurrentPeriodCompletions, todayStr)
-					}
-
-					// Check if the current period is now complete
-					if isPeriodCompleted(task) {
+					if IsPeriodCompletedNew(task) {
 						// Period completed! Increment completion count
 						task.CompletionCount++
 
-						// Check if max count is reached (0 means infinite)
+						// Check if max count is reached
 						if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
-							// Mark as completed - no more recurrences
 							task.Status = "completed"
-
 							err := store.Save(todos, false)
 							if err != nil {
 								return fmt.Errorf("failed to save updated todos: %w", err)
@@ -283,14 +283,15 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 							return nil
 						}
 
-						// Clear current period completions and start next period
-						task.CurrentPeriodCompletions = []string{}
+						// Create occurrences for next period
+						nextPeriodOccurrences := CreateNextPeriodOccurrences(task)
+						task.OccurrenceHistory = append(task.OccurrenceHistory, nextPeriodOccurrences...)
 
-						// Calculate next period's first occurrence
-						nextTime := calculateNextWeekday(currentDate, task.RecurringWeekdays)
-						task.EndTime = nextTime
-						task.DueDate = nextTime.Format("2006-01-02")
-						task.Status = "pending"
+						// Update EndTime to first occurrence of next period
+						if len(nextPeriodOccurrences) > 0 {
+							task.EndTime = nextPeriodOccurrences[0].ScheduledTime
+							task.DueDate = nextPeriodOccurrences[0].ScheduledTime.Format("2006-01-02")
+						}
 
 						err := store.Save(todos, false)
 						if err != nil {
@@ -303,27 +304,41 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 							countDisplay = fmt.Sprintf("%d/%d", task.CompletionCount, task.RecurringMaxCount)
 						}
 
-						logger.Infof("Period completed. Count: %s, Next period starts: %s", countDisplay, nextTime.Format("2006-01-02 15:04"))
-						fmt.Printf("✅ Period completed! (Count: %s) Next period starts: %s\n", countDisplay, nextTime.Format("2006-01-02 15:04"))
+						logger.Infof("Period completed. Count: %s, Next period starts: %s", countDisplay, task.EndTime.Format("2006-01-02 15:04"))
+						fmt.Printf("✅ Period completed! (Count: %s) Next period starts: %s\n", countDisplay, task.EndTime.Format("2006-01-02 15:04"))
 						return nil
-					} else {
-						// Period not yet complete, find next date in current period
-						nextInPeriod, hasNext := findNextInCurrentPeriod(task, currentDate)
-						if hasNext {
-							task.EndTime = nextInPeriod
-							task.DueDate = nextInPeriod.Format("2006-01-02")
-							task.Status = "pending"
+					}
 
-							err := store.Save(todos, false)
-							if err != nil {
-								return fmt.Errorf("failed to save updated todos: %w", err)
-							}
+					// Period not complete, find next pending in current period
+					nextOcc, _ := GetNextPendingOccurrence(task)
+					if nextOcc != nil {
+						task.EndTime = nextOcc.ScheduledTime
+						task.DueDate = nextOcc.ScheduledTime.Format("2006-01-02")
 
-							progressDisplay := fmt.Sprintf("%d/%d in this period", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
-							logger.Infof("Sub-task completed. Progress: %s, Next: %s", progressDisplay, nextInPeriod.Format("2006-01-02 15:04"))
-							fmt.Printf("✅ Sub-task completed! (%s) Next: %s\n", progressDisplay, nextInPeriod.Format("2006-01-02 15:04"))
-							return nil
+						// Count completed occurrences in current week
+						now := time.Now()
+						weekStart := now
+						for weekStart.Weekday() != time.Sunday {
+							weekStart = weekStart.AddDate(0, 0, -1)
 						}
+						weekEnd := weekStart.AddDate(0, 0, 7)
+
+						completedInWeek := 0
+						for _, occ := range task.OccurrenceHistory {
+							if !occ.ScheduledTime.Before(weekStart) && occ.ScheduledTime.Before(weekEnd) && occ.Status == "completed" {
+								completedInWeek++
+							}
+						}
+
+						err := store.Save(todos, false)
+						if err != nil {
+							return fmt.Errorf("failed to save updated todos: %w", err)
+						}
+
+						progressDisplay := fmt.Sprintf("%d/%d in this period", completedInWeek, len(task.RecurringWeekdays))
+						logger.Infof("Sub-task completed. Progress: %s, Next: %s", progressDisplay, nextOcc.ScheduledTime.Format("2006-01-02 15:04"))
+						fmt.Printf("✅ Sub-task completed! (%s) Next: %s\n", progressDisplay, nextOcc.ScheduledTime.Format("2006-01-02 15:04"))
+						return nil
 					}
 				}
 
@@ -331,11 +346,9 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 				// Each completion counts as one period
 				task.CompletionCount++
 
-				// Check if max count is reached (0 means infinite)
+				// Check if max count is reached
 				if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
-					// Mark as completed - no more recurrences
 					task.Status = "completed"
-
 					err := store.Save(todos, false)
 					if err != nil {
 						return fmt.Errorf("failed to save updated todos: %w", err)
@@ -346,17 +359,15 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 					return nil
 				}
 
-				// Calculate next occurrence
-				nextTime := calculateNextOccurrence(task)
-				task.EndTime = nextTime
+				// Create next occurrence
+				nextOccurrences := CreateNextPeriodOccurrences(task)
+				task.OccurrenceHistory = append(task.OccurrenceHistory, nextOccurrences...)
 
-				// Update DueDate to reflect next occurrence
-				task.DueDate = nextTime.Format("2006-01-02")
+				if len(nextOccurrences) > 0 {
+					task.EndTime = nextOccurrences[0].ScheduledTime
+					task.DueDate = nextOccurrences[0].ScheduledTime.Format("2006-01-02")
+				}
 
-				// Keep status as pending for next occurrence
-				task.Status = "pending"
-
-				// Save updated todos
 				err := store.Save(todos, false)
 				if err != nil {
 					return fmt.Errorf("failed to save updated todos: %w", err)
@@ -368,15 +379,20 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 					countDisplay = fmt.Sprintf("%d/%d", task.CompletionCount, task.RecurringMaxCount)
 				}
 
-				logger.Infof("Recurring task completed. Count: %s, Next occurrence: %s", countDisplay, nextTime.Format("2006-01-02 15:04"))
-				fmt.Printf("✅ Task completed! (Count: %s) Next occurrence: %s\n", countDisplay, nextTime.Format("2006-01-02 15:04"))
+				logger.Infof("Recurring task completed. Count: %s, Next occurrence: %s", countDisplay, task.EndTime.Format("2006-01-02 15:04"))
+				fmt.Printf("✅ Task completed! (Count: %s) Next occurrence: %s\n", countDisplay, task.EndTime.Format("2006-01-02 15:04"))
 				return nil
 			}
 
-			// Non-recurring task: mark as completed (keep in main list)
+			// Handle legacy recurring tasks (with CurrentPeriodCompletions) - migrate to new model
+			if task.IsRecurring && len(task.CurrentPeriodCompletions) > 0 {
+				// TODO: Migration logic for old format
+				return fmt.Errorf("please recreate this recurring task to use the new occurrence tracking system")
+			}
+
+			// Non-recurring task: mark as completed
 			task.Status = "completed"
 
-			// Save updated todos to original file
 			err := store.Save(todos, false)
 			if err != nil {
 				return fmt.Errorf("failed to save updated todos: %w", err)
@@ -388,6 +404,201 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 		}
 	}
 	return fmt.Errorf("task with ID %d not found", id)
+}
+
+// GetCurrentOccurrence returns the current occurrence that should be completed
+// Returns the occurrence and its index in the history, or -1 if not found
+func GetCurrentOccurrence(task *TodoItem) (*OccurrenceRecord, int) {
+	if !task.IsRecurring || len(task.OccurrenceHistory) == 0 {
+		return nil, -1
+	}
+
+	now := time.Now()
+
+	// Find the first pending occurrence that is due (scheduled time has passed or is today)
+	for i := range task.OccurrenceHistory {
+		occ := &task.OccurrenceHistory[i]
+		if occ.Status == "pending" {
+			// Check if it's due (scheduled time has passed or is within today)
+			if !occ.ScheduledTime.After(now) {
+				return occ, i
+			}
+		}
+	}
+
+	return nil, -1
+}
+
+// GetNextPendingOccurrence returns the next pending occurrence
+func GetNextPendingOccurrence(task *TodoItem) (*OccurrenceRecord, int) {
+	if !task.IsRecurring || len(task.OccurrenceHistory) == 0 {
+		return nil, -1
+	}
+
+	for i := range task.OccurrenceHistory {
+		occ := &task.OccurrenceHistory[i]
+		if occ.Status == "pending" {
+			return occ, i
+		}
+	}
+
+	return nil, -1
+}
+
+// IsPeriodCompletedNew checks if the current period is completed based on OccurrenceHistory
+func IsPeriodCompletedNew(task *TodoItem) bool {
+	if !task.IsRecurring {
+		return false
+	}
+
+	// For weekday-specific weekly tasks, check if all occurrences in current week are completed
+	if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+		now := time.Now()
+		weekStart := now
+		for weekStart.Weekday() != time.Sunday {
+			weekStart = weekStart.AddDate(0, 0, -1)
+		}
+		weekEnd := weekStart.AddDate(0, 0, 7)
+
+		pendingInCurrentWeek := 0
+		completedInCurrentWeek := 0
+
+		for _, occ := range task.OccurrenceHistory {
+			if !occ.ScheduledTime.Before(weekStart) && occ.ScheduledTime.Before(weekEnd) {
+				if occ.Status == "pending" {
+					pendingInCurrentWeek++
+				} else if occ.Status == "completed" {
+					completedInCurrentWeek++
+				}
+			}
+		}
+
+		// Period is completed if no pending occurrences left in current week
+		// and we have completed at least some occurrences
+		return pendingInCurrentWeek == 0 && completedInCurrentWeek > 0
+	}
+
+	// For other types, a single completion marks the period as complete
+	return false
+}
+
+// CreateNextPeriodOccurrences creates occurrence records for the next period
+func CreateNextPeriodOccurrences(task *TodoItem) []OccurrenceRecord {
+	newOccurrences := []OccurrenceRecord{}
+
+	if !task.IsRecurring {
+		return newOccurrences
+	}
+
+	// For weekday-specific weekly tasks, create occurrences for next week
+	if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+		// Find the start of next week
+		now := time.Now()
+		nextWeekStart := now
+		for nextWeekStart.Weekday() != time.Sunday {
+			nextWeekStart = nextWeekStart.AddDate(0, 0, -1)
+		}
+		nextWeekStart = nextWeekStart.AddDate(0, 0, 7) // Move to next week
+
+		// Create occurrences for each required weekday
+		for _, weekday := range task.RecurringWeekdays {
+			scheduledTime := nextWeekStart.AddDate(0, 0, weekday)
+
+			// Preserve the time of day from the task's EndTime
+			scheduledTime = time.Date(
+				scheduledTime.Year(), scheduledTime.Month(), scheduledTime.Day(),
+				task.EndTime.Hour(), task.EndTime.Minute(), task.EndTime.Second(),
+				0, task.EndTime.Location(),
+			)
+
+			newOccurrences = append(newOccurrences, OccurrenceRecord{
+				ScheduledTime: scheduledTime,
+				Status:        "pending",
+			})
+		}
+	} else {
+		// For other recurring types, create a single next occurrence
+		nextTime := calculateNextOccurrence(task)
+		newOccurrences = append(newOccurrences, OccurrenceRecord{
+			ScheduledTime: nextTime,
+			Status:        "pending",
+		})
+	}
+
+	return newOccurrences
+}
+
+// MarkMissedOccurrences marks overdue pending occurrences as missed
+func MarkMissedOccurrences(task *TodoItem) int {
+	if !task.IsRecurring {
+		return 0
+	}
+
+	now := time.Now()
+	missedCount := 0
+
+	for i := range task.OccurrenceHistory {
+		occ := &task.OccurrenceHistory[i]
+		if occ.Status == "pending" {
+			// If scheduled time + event duration has passed, mark as missed
+			endTime := occ.ScheduledTime.Add(task.EventDuration)
+			if endTime.Before(now) {
+				occ.Status = "missed"
+				missedCount++
+			}
+		}
+	}
+
+	return missedCount
+}
+
+// initializeOccurrenceHistory creates initial occurrence records for a new recurring task
+func initializeOccurrenceHistory(task *TodoItem) []OccurrenceRecord {
+	history := []OccurrenceRecord{}
+
+	if !task.IsRecurring {
+		return history
+	}
+
+	// For weekday-specific weekly tasks, create records for all days in the current period (week)
+	if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+		currentDate := task.EndTime // EndTime is set to the first scheduled occurrence
+
+		// Find the start of the current week (Sunday)
+		weekStart := currentDate
+		for weekStart.Weekday() != time.Sunday {
+			weekStart = weekStart.AddDate(0, 0, -1)
+		}
+
+		// Create an occurrence for each required weekday in the current period
+		for _, weekday := range task.RecurringWeekdays {
+			scheduledTime := weekStart.AddDate(0, 0, weekday)
+
+			// Preserve the time of day from EndTime
+			scheduledTime = time.Date(
+				scheduledTime.Year(), scheduledTime.Month(), scheduledTime.Day(),
+				task.EndTime.Hour(), task.EndTime.Minute(), task.EndTime.Second(),
+				0, task.EndTime.Location(),
+			)
+
+			// Only add if it's in the future or today
+			if !scheduledTime.Before(time.Now().Truncate(24 * time.Hour)) {
+				history = append(history, OccurrenceRecord{
+					ScheduledTime: scheduledTime,
+					Status:        "pending",
+				})
+			}
+		}
+	} else {
+		// For other recurring types (daily, simple weekly, monthly, yearly)
+		// Create just the first occurrence
+		history = append(history, OccurrenceRecord{
+			ScheduledTime: task.EndTime,
+			Status:        "pending",
+		})
+	}
+
+	return history
 }
 
 // calculateNextOccurrence calculates the next occurrence time based on recurring type and interval
@@ -538,13 +749,20 @@ func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
 		}
 		// Initialize completion count
 		todo.CompletionCount = 0
+
+		// Initialize occurrence history for recurring tasks
+		todo.OccurrenceHistory = initializeOccurrenceHistory(todo)
+
+		// Set status to "active" for recurring tasks
+		todo.Status = "active"
+	} else {
+		// Set status to "pending" for non-recurring tasks
+		todo.Status = "pending"
 	}
 
 	// Generate a unique TaskID
 	id := GetLastId(todos)
-	// Set the Status field to "pending"
 	todo.TaskID = id
-	todo.Status = "pending"
 	// Add the new todo to the todos slice (but don't save yet)
 	*todos = append(*todos, *todo)
 	return nil
@@ -607,6 +825,19 @@ func GetTask(todos *[]TodoItem, id int) error {
 				recurringInfo += fmt.Sprintf("- **Type:** %s\n", task.RecurringType)
 				recurringInfo += fmt.Sprintf("- **Interval:** Every %d %s\n", task.RecurringInterval, task.RecurringType)
 
+				// Show event duration if specified
+				if task.EventDuration > 0 {
+					hours := int(task.EventDuration.Hours())
+					minutes := int(task.EventDuration.Minutes()) % 60
+					if hours > 0 && minutes > 0 {
+						recurringInfo += fmt.Sprintf("- **Duration:** %dh %dm\n", hours, minutes)
+					} else if hours > 0 {
+						recurringInfo += fmt.Sprintf("- **Duration:** %dh\n", hours)
+					} else if minutes > 0 {
+						recurringInfo += fmt.Sprintf("- **Duration:** %dm\n", minutes)
+					}
+				}
+
 				if len(task.RecurringWeekdays) > 0 {
 					weekdayNames := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 					weekdayNamesZh := []string{"周日", "周一", "周二", "周三", "周四", "周五", "周六"}
@@ -623,12 +854,107 @@ func GetTask(todos *[]TodoItem, id int) error {
 					recurringInfo += fmt.Sprintf("- **Weekdays:** %s\n", strings.Join(days, ", "))
 				}
 
-				// Show period progress for weekday-specific tasks
-				if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
-					periodProgress := fmt.Sprintf("%d/%d", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
-					recurringInfo += fmt.Sprintf("- **Current Week Progress:** %s days completed\n", periodProgress)
+				// Show occurrence history if using new model
+				if len(task.OccurrenceHistory) > 0 {
+					now := time.Now()
+					weekStart := now
+					for weekStart.Weekday() != time.Sunday {
+						weekStart = weekStart.AddDate(0, 0, -1)
+					}
+					weekEnd := weekStart.AddDate(0, 0, 7)
 
-					if len(task.CurrentPeriodCompletions) > 0 {
+					// Count occurrences in current week
+					pendingThisWeek := 0
+					completedThisWeek := 0
+					missedThisWeek := 0
+
+					for _, occ := range task.OccurrenceHistory {
+						if !occ.ScheduledTime.Before(weekStart) && occ.ScheduledTime.Before(weekEnd) {
+							switch occ.Status {
+							case "pending":
+								pendingThisWeek++
+							case "completed":
+								completedThisWeek++
+							case "missed":
+								missedThisWeek++
+							}
+						}
+					}
+
+					// Show current week progress for weekday-specific tasks
+					if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
+						recurringInfo += fmt.Sprintf("- **Current Week:** %d completed", completedThisWeek)
+						if missedThisWeek > 0 {
+							recurringInfo += fmt.Sprintf(", %d missed", missedThisWeek)
+						}
+						if pendingThisWeek > 0 {
+							recurringInfo += fmt.Sprintf(", %d pending", pendingThisWeek)
+						}
+						recurringInfo += fmt.Sprintf(" (out of %d)\n", len(task.RecurringWeekdays))
+					}
+
+					// Show recent completed occurrences (last 3)
+					completedOccs := []OccurrenceRecord{}
+					for _, occ := range task.OccurrenceHistory {
+						if occ.Status == "completed" {
+							completedOccs = append(completedOccs, occ)
+						}
+					}
+					if len(completedOccs) > 0 {
+						recurringInfo += "- **Recent Completions:**\n"
+						start := len(completedOccs) - 3
+						if start < 0 {
+							start = 0
+						}
+						for i := len(completedOccs) - 1; i >= start && i >= 0; i-- {
+							occ := completedOccs[i]
+							recurringInfo += fmt.Sprintf("  - ✅ %s", occ.ScheduledTime.Format("2006-01-02 15:04"))
+							if !occ.CompletedAt.IsZero() && occ.CompletedAt.Format("2006-01-02") != occ.ScheduledTime.Format("2006-01-02") {
+								recurringInfo += fmt.Sprintf(" (completed on %s)", occ.CompletedAt.Format("2006-01-02"))
+							}
+							recurringInfo += "\n"
+						}
+					}
+
+					// Show upcoming occurrences (next 3 pending)
+					pendingOccs := []OccurrenceRecord{}
+					for _, occ := range task.OccurrenceHistory {
+						if occ.Status == "pending" {
+							pendingOccs = append(pendingOccs, occ)
+						}
+					}
+					if len(pendingOccs) > 0 {
+						recurringInfo += "- **Upcoming:**\n"
+						count := 3
+						if len(pendingOccs) < count {
+							count = len(pendingOccs)
+						}
+						for i := 0; i < count; i++ {
+							occ := pendingOccs[i]
+							recurringInfo += fmt.Sprintf("  - 📅 %s", occ.ScheduledTime.Format("2006-01-02 15:04"))
+							if task.EventDuration > 0 {
+								endTime := occ.ScheduledTime.Add(task.EventDuration)
+								recurringInfo += fmt.Sprintf(" - %s", endTime.Format("15:04"))
+							}
+							recurringInfo += "\n"
+						}
+					}
+
+					// Show missed occurrences if any
+					missedOccs := []OccurrenceRecord{}
+					for _, occ := range task.OccurrenceHistory {
+						if occ.Status == "missed" {
+							missedOccs = append(missedOccs, occ)
+						}
+					}
+					if len(missedOccs) > 0 {
+						recurringInfo += fmt.Sprintf("- **Missed:** %d occurrence(s)\n", len(missedOccs))
+					}
+				} else {
+					// Legacy format - show old progress tracking
+					if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 && len(task.CurrentPeriodCompletions) > 0 {
+						periodProgress := fmt.Sprintf("%d/%d", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
+						recurringInfo += fmt.Sprintf("- **Current Week Progress:** %s days completed\n", periodProgress)
 						recurringInfo += "- **Completed This Week:** " + strings.Join(task.CurrentPeriodCompletions, ", ") + "\n"
 					}
 				}
