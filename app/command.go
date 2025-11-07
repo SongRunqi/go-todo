@@ -91,7 +91,8 @@ Return format (remove markdown code fence):
 			"isRecurring": "true or false - Detect if this is a recurring/repeating task. Keywords: 每天 (daily), 每周 (weekly), 每月 (monthly), 每年 (yearly), daily, weekly, monthly, yearly, every day, every week, 定期 (regularly), 例行 (routine)",
 			"recurringType": "Only set if isRecurring=true. Values: 'daily', 'weekly', 'monthly', 'yearly'. Examples: 每天->daily, 每周->weekly, 每月->monthly, 每年->yearly",
 			"recurringInterval": "Only set if isRecurring=true. Integer for interval. Default 1. Examples: 每天->1, 每两天->2, 每周->1, 每两周->2",
-			"recurringWeekdays": "Only set if isRecurring=true AND recurringType='weekly' AND task specifies specific weekdays. Array of integers where 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. Examples: 周一周三周五->[1,3,5], 周二周四->[2,4], Mon/Wed/Fri->[1,3,5], Tue/Thu->[2,4]. Leave empty for simple weekly (every week same day)."
+			"recurringWeekdays": "Only set if isRecurring=true AND recurringType='weekly' AND task specifies specific weekdays. Array of integers where 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. Examples: 周一周三周五->[1,3,5], 周二周四->[2,4], Mon/Wed/Fri->[1,3,5], Tue/Thu->[2,4]. Leave empty for simple weekly (every week same day).",
+			"recurringMaxCount": "Only set if isRecurring=true AND user specifies a limited number of repetitions. Integer value for maximum repetitions. 0 or omitted = infinite. Examples: 每天跑步30次->30, 每周健身12次->12, 连续10天打卡->10, daily exercise for 30 days->30, weekly meeting 12 times->12. If no count specified, omit this field or use 0."
 		}
 	]
 }
@@ -127,6 +128,11 @@ RECURRING task examples:
 - "周二周四晚上健身" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4]
 - "Mon/Wed/Fri team meeting" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5]
 - "Tuesday and Thursday gym" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4]
+- "每天跑步30次" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=30
+- "每周健身12次" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=12
+- "连续10天打卡" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=10
+- "daily exercise for 30 days" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=30
+- "weekly meeting 12 times" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=12
 - "例行检查设备" (without specific frequency) -> isRecurring=false (not specific enough)
 - "买牛奶" (one-time task) -> isRecurring=false
 
@@ -223,6 +229,21 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 				// Increment completion count
 				task.CompletionCount++
 
+				// Check if max count is reached (0 means infinite)
+				if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
+					// Mark as completed - no more recurrences
+					task.Status = "completed"
+
+					err := store.Save(todos, false)
+					if err != nil {
+						return fmt.Errorf("failed to save updated todos: %w", err)
+					}
+
+					logger.Infof("Recurring task completed for the final time. Total completions: %d/%d", task.CompletionCount, task.RecurringMaxCount)
+					fmt.Printf("✅ Task completed! (%d/%d - Final completion) 🎉\n", task.CompletionCount, task.RecurringMaxCount)
+					return nil
+				}
+
 				// Calculate next occurrence
 				nextTime := calculateNextOccurrence(task)
 				task.EndTime = nextTime
@@ -239,8 +260,14 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 					return fmt.Errorf("failed to save updated todos: %w", err)
 				}
 
-				logger.Infof("Recurring task completed. Count: %d, Next occurrence: %s", task.CompletionCount, nextTime.Format("2006-01-02 15:04"))
-				fmt.Printf("✅ Task completed! (Count: %d) Next occurrence: %s\n", task.CompletionCount, nextTime.Format("2006-01-02 15:04"))
+				// Show count with max if specified
+				countDisplay := fmt.Sprintf("%d", task.CompletionCount)
+				if task.RecurringMaxCount > 0 {
+					countDisplay = fmt.Sprintf("%d/%d", task.CompletionCount, task.RecurringMaxCount)
+				}
+
+				logger.Infof("Recurring task completed. Count: %s, Next occurrence: %s", countDisplay, nextTime.Format("2006-01-02 15:04"))
+				fmt.Printf("✅ Task completed! (Count: %s) Next occurrence: %s\n", countDisplay, nextTime.Format("2006-01-02 15:04"))
 				return nil
 			}
 
@@ -354,6 +381,9 @@ func CreateTask(todos *[]TodoItem, todo *TodoItem) error {
 			return err
 		}
 		if err := validator.ValidateRecurringWeekdays(todo.RecurringWeekdays); err != nil {
+			return err
+		}
+		if err := validator.ValidateRecurringMaxCount(todo.RecurringMaxCount, todo.IsRecurring); err != nil {
 			return err
 		}
 		// Set default interval if not specified

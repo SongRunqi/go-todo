@@ -184,6 +184,30 @@ func ValidateRecurringWeekdays(weekdays []int) error {
 	return nil
 }
 
+// ValidateRecurringMaxCount validates recurring max count
+func ValidateRecurringMaxCount(maxCount int, isRecurring bool) error {
+	if !isRecurring {
+		return nil // Not applicable for non-recurring tasks
+	}
+
+	// 0 or not set means infinite, which is valid
+	if maxCount == 0 {
+		return nil
+	}
+
+	// Max count must be positive if set
+	if maxCount < 0 {
+		return fmt.Errorf("recurring max count cannot be negative: %d", maxCount)
+	}
+
+	// Reasonable upper limit to prevent abuse
+	if maxCount > 10000 {
+		return fmt.Errorf("recurring max count too large: %d (max 10000)", maxCount)
+	}
+
+	return nil
+}
+
 // ValidateTodoItem validates all fields of a TodoItem
 type TodoItem interface {
 	GetTaskID() int

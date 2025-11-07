@@ -18,8 +18,13 @@ func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
 		recurringIndicator := ""
 		if task.IsRecurring {
 			recurringIndicator = "🔄 "
-			if task.CompletionCount > 0 {
-				recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "x) "
+			if task.CompletionCount > 0 || task.RecurringMaxCount > 0 {
+				// Show count/max format if max is set, otherwise just count
+				if task.RecurringMaxCount > 0 {
+					recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "/" + strconv.Itoa(task.RecurringMaxCount) + ") "
+				} else {
+					recurringIndicator += "(" + strconv.Itoa(task.CompletionCount) + "x) "
+				}
 			}
 		}
 
