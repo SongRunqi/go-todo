@@ -19,10 +19,10 @@ func ValidateTaskID(id int) error {
 func ValidateTaskName(name string) error {
 	trimmed := strings.TrimSpace(name)
 	if trimmed == "" {
-		return fmt.Errorf(i18n.T("validation.task_name_empty"))
+		return fmt.Errorf("%s", i18n.T("validation.task_name_empty"))
 	}
 	if len(trimmed) > 200 {
-		return fmt.Errorf(i18n.T("validation.task_name_too_long"), len(trimmed))
+		return fmt.Errorf("%s", i18n.T("validation.task_name_too_long"))
 	}
 	return nil
 }

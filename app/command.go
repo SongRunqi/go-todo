@@ -1367,7 +1367,7 @@ func CompactTasks(store *FileTodoStore, period string) error {
 
 	fmt.Println("==============================================")
 	fmt.Printf("Compacting tasks by %s using AI...\n", period)
-	fmt.Println("==============================================\n")
+	fmt.Println("==============================================")
 
 	// Generate summaries for each period
 	summaryTasks := make([]TodoItem, 0)
