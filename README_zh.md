@@ -26,6 +26,10 @@
 - **多种输出格式**：JSON（兼容 Alfred）和 Markdown 格式
 
 ### 开发者功能
+- **🌍 国际化 (i18n)**：完整支持中文和英文
+  - 自动从系统环境检测语言
+  - 通过 `TODO_LANG` 环境变量切换语言
+  - 所有用户界面文本完全翻译
 - **🎨 彩色输出**：漂亮的终端彩色输出
   - ✓ 绿色表示成功消息
   - ✗ 红色表示错误并提供可操作建议
@@ -62,7 +66,46 @@
 go version  # 应该是 1.21 或更高版本
 ```
 
-### 快速安装
+### 推荐：使用安装脚本
+
+最简单的安装方法：
+
+```bash
+# 克隆仓库
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# 运行安装脚本
+chmod +x install.sh
+./install.sh
+```
+
+脚本会：
+- ✓ 构建优化的二进制文件
+- ✓ 安装到 `~/.local/bin/todo`
+- ✓ 初始化待办目录和配置
+- ✓ 引导您选择语言
+
+### 替代方法：使用 Makefile
+
+```bash
+# 克隆仓库
+git clone https://github.com/SongRunqi/go-todo.git
+cd go-todo
+
+# 安装并初始化（推荐）
+make init
+
+# 或仅安装（不初始化）
+make install
+
+# 或仅构建（二进制文件在当前目录）
+make build
+```
+
+运行 `make help` 查看所有可用命令。
+
+### 手动安装
 
 ```bash
 # 克隆仓库
@@ -73,47 +116,45 @@ cd go-todo
 go mod download
 
 # 构建应用
-go build -o todo main.go
+go build -ldflags="-s -w" -o todo main.go
 
-# 验证构建
-./todo --help
-```
+# 安装到 ~/.local/bin
+mkdir -p ~/.local/bin
+cp todo ~/.local/bin/
+chmod +x ~/.local/bin/todo
 
-### 全局安装
-
-要从任何位置使用 `todo`：
-
-```bash
-# Linux/macOS - 复制到 /usr/local/bin
-sudo cp todo /usr/local/bin/todo
-
-# 或复制到 ~/bin（需要将 ~/bin 添加到 PATH）
-mkdir -p ~/bin
-cp todo ~/bin/todo
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+# 如果还未添加到 PATH（添加到您的 shell 配置）
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 
-# 现在可以从任何地方使用 'todo'
+# 初始化待办环境
+todo init
 todo list
 ```
 
 ## 快速开始
 
 ```bash
-# 1. 设置你的 API 密钥
+# 1. 初始化待办环境（如果还未完成）
+todo init
+
+# 2. 设置你的 API 密钥
 export API_KEY="your-deepseek-api-key-here"
 
-# 2. 使用自然语言创建任务
-./todo "明天晚上买菜"
+# 3. 设置首选语言（可选，初始化时会询问）
+todo lang set zh    # 或 'en' 表示英文
 
-# 3. 列出所有任务
-./todo list
+# 4. 使用自然语言创建任务
+todo "明天晚上买菜"
 
-# 4. 完成任务
-./todo complete 1
+# 5. 列出所有任务
+todo list
 
-# 5. 查看已完成的任务
-./todo back
+# 6. 完成任务
+todo complete 1
+
+# 7. 查看已完成的任务
+todo back
 ```
 
 ## 配置
@@ -126,6 +167,9 @@ export API_KEY="your-deepseek-api-key-here"
 - `API_KEY`：你的 DeepSeek API 密钥用于 LLM 功能（或使用 `DEEPSEEK_API_KEY`）
 
 #### 可选
+- `TODO_LANG`：设置界面语言（默认自动从系统检测）
+  - 支持的值：`en`（英文）、`zh`（中文）
+  - 如果未设置，会从 `LANGUAGE`、`LC_ALL`、`LC_MESSAGES` 或 `LANG` 自动检测
 - `LLM_BASE_URL`：自定义 LLM API 端点（默认为 `https://api.deepseek.com/chat/completions`）
   - 用于切换到其他 LLM 提供商（OpenAI、Claude 等）
 - `LLM_MODEL`：要使用的模型（默认为提供商的默认模型）
@@ -143,12 +187,66 @@ export API_KEY="your-api-key-here"
 export LLM_BASE_URL="https://api.deepseek.com/chat/completions"
 export LLM_MODEL="deepseek-chat"
 export LOG_LEVEL="info"
+export TODO_LANG="zh"  # 或 "en" 使用英文
 
 # 改用 OpenAI
 export API_KEY="your-openai-api-key"
 export LLM_BASE_URL="https://api.openai.com/v1/chat/completions"
 export LLM_MODEL="gpt-4"
 ```
+
+## 国际化 (i18n)
+
+Todo-Go 支持多种语言，所有用户界面文本均可翻译。
+
+### 支持的语言
+
+- **中文 (zh)**：简体中文
+- **English (en)**：英文
+
+### 设置语言
+
+使用 `lang` 命令设置您的首选语言。设置将保存到 `~/.todo/config.json` 并在所有命令中保持有效。
+
+```bash
+# 列出可用语言（Alfred 兼容的 JSON 格式）
+./todo lang list
+
+# 设置语言为中文
+./todo lang set zh
+
+# 设置语言为英文
+./todo lang set en
+
+# 查看当前语言
+./todo lang current
+```
+
+### 自动检测
+
+如果配置文件中未设置语言，应用程序将从以下环境变量（按顺序）自动检测系统语言：
+1. `LANGUAGE`
+2. `LC_ALL`
+3. `LC_MESSAGES`
+4. `LANG`
+
+### 示例
+
+**中文：**
+```bash
+$ ./todo lang set zh
+$ ./todo --help
+一个简单的命令行待办事项应用，支持自然语言输入和 AI 驱动的任务管理。
+```
+
+**English:**
+```bash
+$ ./todo lang set en
+$ ./todo --help
+A simple command-line TODO application that supports natural language input and AI-powered task management.
+```
+
+所有命令帮助、错误消息、验证消息和输出文本都将以您选择的语言显示。
 
 ## 使用方法
 
@@ -324,6 +422,24 @@ AI 将自动：
 ./todo delete 1
 ```
 
+### 语言管理
+
+管理应用程序的语言设置：
+
+```bash
+# 列出可用语言（Alfred 兼容的 JSON 格式）
+./todo lang list
+
+# 设置首选语言
+./todo lang set en   # 英文
+./todo lang set zh   # 中文
+
+# 显示当前语言
+./todo lang current
+```
+
+语言偏好将保存到 `~/.todo/config.json` 并在所有命令中保持有效。更多详情请参阅[国际化](#国际化-i18n)部分。
+
 ## 跨平台构建
 
 ### 为当前平台构建
@@ -466,6 +582,11 @@ go-todo/
 │   ├── parser.go               # Markdown/JSON 解析器
 │   └── parser_test.go          # 解析器测试（94.6% 覆盖率）
 ├── internal/                    # 内部包
+│   ├── i18n/                   # 国际化
+│   │   ├── i18n.go            # i18n 包（嵌入式翻译）
+│   │   └── translations/      # 翻译文件
+│   │       ├── en.json        # 英文翻译
+│   │       └── zh.json        # 中文翻译
 │   ├── logger/                 # 结构化日志（zerolog）
 │   ├── validator/              # 输入验证
 │   ├── ai/                     # AI 客户端抽象
@@ -666,28 +787,27 @@ chmod +x todo
 
 ### 版本 1.3.0（最新）
 
-1. **CI/CD 流水线**：
+1. **国际化 (i18n) 支持**：
+   - 完整支持中文和英文
+   - 自动检测系统语言或使用 `TODO_LANG` 环境变量
+   - 所有用户界面文本完全翻译（命令、消息、错误等）
+
+2. **CI/CD 流水线**：
    - GitHub Actions 自动化测试
    - 多平台构建（Linux、macOS、Windows）
    - 代码检查和格式化检查
    - 覆盖率报告集成
 
-2. **UX 改进**：
+3. **UX 改进**：
    - 彩色终端输出，带有状态指示器
    - AI 操作进度旋转器
    - 带有可操作建议的错误消息
    - Shell 补全支持（Bash、Zsh、Fish、PowerShell）
 
-3. **性能优化**：
+4. **性能优化**：
    - 全面的基准测试套件
    - 优化的构建标志
    - 性能基线指标
-
-4. **内部改进**：
-   - 结构化日志（Zerolog）
-   - 输入验证层
-   - AI 客户端抽象
-   - 内存存储选项
 
 ## 贡献
 

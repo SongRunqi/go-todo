@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/SongRunqi/go-todo/internal/i18n"
 )
 
 var (
@@ -66,33 +67,33 @@ func PrintInfo(format string, a ...interface{}) {
 
 // PrintTaskCreated prints a formatted task creation message
 func PrintTaskCreated(taskID int, taskName string) {
-	Success.Print("✓ Task created: ")
+	Success.Printf("✓ %s: ", i18n.T("output.task_created"))
 	TaskID.Printf("#%d ", taskID)
 	TaskTitle.Println(taskName)
 }
 
 // PrintTaskCompleted prints a formatted task completion message
 func PrintTaskCompleted(taskID int, taskName string) {
-	Success.Print("✓ Task completed: ")
+	Success.Printf("✓ %s: ", i18n.T("output.task_completed"))
 	TaskID.Printf("#%d ", taskID)
 	TaskTitle.Println(taskName)
 }
 
 // PrintTaskUpdated prints a formatted task update message
 func PrintTaskUpdated(taskID int, taskName string) {
-	Success.Print("✓ Task updated: ")
+	Success.Printf("✓ %s: ", i18n.T("output.task_updated"))
 	TaskID.Printf("#%d ", taskID)
 	TaskTitle.Println(taskName)
 }
 
 // PrintTaskDeleted prints a formatted task deletion message
 func PrintTaskDeleted(taskID int) {
-	Success.Printf("✓ Task #%d deleted successfully\n", taskID)
+	Success.Printf("✓ %s: #%d\n", i18n.T("output.task_deleted"), taskID)
 }
 
 // PrintTaskRestored prints a formatted task restoration message
 func PrintTaskRestored(taskID int, taskName string) {
-	Success.Print("✓ Task restored: ")
+	Success.Printf("✓ %s: ", i18n.T("output.task_restored"))
 	TaskID.Printf("#%d ", taskID)
 	TaskTitle.Println(taskName)
 }

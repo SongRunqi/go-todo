@@ -5,6 +5,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
+	"github.com/SongRunqi/go-todo/internal/i18n"
 )
 
 // Spinner wraps the spinner library with our color scheme
@@ -23,7 +24,7 @@ func NewSpinner(message string) *Spinner {
 // NewAISpinner creates a spinner specifically for AI operations
 func NewAISpinner() *Spinner {
 	s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
-	s.Suffix = color.CyanString(" Processing with AI...")
+	s.Suffix = color.CyanString(" " + i18n.T("output.processing_ai"))
 	s.Color("cyan", "bold")
 	return &Spinner{s: s}
 }
