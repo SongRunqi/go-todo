@@ -66,8 +66,9 @@ Return format (remove markdown code fence):
 			"endTime": "CRITICAL - Use START time for EVENTS, deadline time for TASKS, first occurrence time for RECURRING tasks:
 
 			Use START time for these EVENT types (time-sensitive, must attend at specific time):
-			- Meetings (会议): '3pm meeting' -> endTime=3pm START time
-			- Classes/Training (课程/培训): '2pm training session' -> endTime=2pm START time
+			- Meetings (会议): '3pm meeting' -> endTime=3pm START time, '3pm-5pm meeting' -> endTime=3pm (START not end)
+			- Classes/Training (课程/培训): '2pm training session' -> endTime=2pm START time, '2pm-4pm training' -> endTime=2pm
+			- Driving (开车): '3:00到5:00开车' -> endTime=3:00 (START time)
 			- Appointments (预约): 'doctor appointment at 10am' -> endTime=10am
 			- Interviews (面试): 'job interview at 9am' -> endTime=9am
 			- Transportation (交通): 'flight departs 8am', 'train at 3pm' -> use departure time
@@ -92,7 +93,7 @@ Return format (remove markdown code fence):
 			"recurringType": "Only set if isRecurring=true. Values: 'daily', 'weekly', 'monthly', 'yearly'. Examples: 每天->daily, 每周->weekly, 每月->monthly, 每年->yearly",
 			"recurringInterval": "Only set if isRecurring=true. Integer for interval. Default 1. Examples: 每天->1, 每两天->2, 每周->1, 每两周->2",
 			"recurringWeekdays": "Only set if isRecurring=true AND recurringType='weekly' AND task specifies specific weekdays. Array of integers where 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. Examples: 周一周三周五->[1,3,5], 周二周四->[2,4], Mon/Wed/Fri->[1,3,5], Tue/Thu->[2,4]. Leave empty for simple weekly (every week same day).",
-			"recurringMaxCount": "Only set if isRecurring=true AND user specifies a limited number of repetitions. Integer value for maximum repetitions. 0 or omitted = infinite. Examples: 每天跑步30次->30, 每周健身12次->12, 连续10天打卡->10, daily exercise for 30 days->30, weekly meeting 12 times->12. If no count specified, omit this field or use 0."
+			"recurringMaxCount": "Only set if isRecurring=true AND user specifies a limited number of repetitions. Integer value for maximum repetitions (periods, not individual occurrences). 0 or omitted = infinite. IMPORTANT: For weekday-specific tasks, count means number of WEEKS, not individual days. Examples: 每天跑步30次->30, 每周健身12次->12, 连续10天打卡->10, 连续7周->7, 共8周->8, 连续4个月->4, daily exercise for 30 days->30, weekly meeting 12 times->12, for 12 weeks->12, Mon/Wed/Fri driving for 7 weeks->7. If no count specified, omit this field or use 0."
 		}
 	]
 }
@@ -101,12 +102,13 @@ Note: Only include "tasks" array when intent is "create". For other intents, omi
 
 Examples:
 EVENT types (use START time):
-- "明天下午3点到5点开会" -> endTime=tomorrow 3pm (meeting START)
+- "明天下午3点到5点开会" -> endTime=tomorrow 3pm (meeting START, not 5pm)
 - "周三上午10点医生预约" -> endTime=Wed 10am (appointment time)
 - "下午2点培训课程" -> endTime=today 2pm (class START)
 - "明天早上9点面试" -> endTime=tomorrow 9am (interview time)
 - "晚上7点看电影" -> endTime=today 7pm (movie START)
 - "下午4点接孩子放学" -> endTime=today 4pm (pickup time)
+- "周一、周三、周五 3:00到5:00开车" -> isRecurring=true, recurringWeekdays=[1,3,5], endTime=next Monday 3:00 (START time, not 5:00)
 
 TASK types (use DEADLINE):
 - "周五前提交报告" -> endTime=Friday end of day (deadline)
@@ -133,6 +135,23 @@ RECURRING task examples:
 - "连续10天打卡" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=10
 - "daily exercise for 30 days" -> isRecurring=true, recurringType="daily", recurringInterval=1, recurringMaxCount=30
 - "weekly meeting 12 times" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=12
+
+COMPLEX recurring task examples (combining weekdays + time + count):
+- "周一、周三、周五 3:00到5:00开车，连续7周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=7, endTime=next Monday 3:00 (START time)
+- "周二周四上午10点培训，共8周" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[2,4], recurringMaxCount=8, endTime=next matching day 10:00
+- "Mon/Wed/Fri 2pm-4pm team meeting, 12 weeks" -> isRecurring=true, recurringType="weekly", recurringWeekdays=[1,3,5], recurringMaxCount=12, endTime=next Monday 2pm
+- "连续4个月每月1号交房租" -> isRecurring=true, recurringType="monthly", recurringInterval=1, recurringMaxCount=4
+- "连续6周每周五写周报" -> isRecurring=true, recurringType="weekly", recurringInterval=1, recurringMaxCount=6
+
+Pattern recognition for "连续X周/月/年" (consecutive periods):
+- "连续7周" = recurringMaxCount=7, recurringType="weekly"
+- "连续10天" = recurringMaxCount=10, recurringType="daily"
+- "连续4个月" = recurringMaxCount=4, recurringType="monthly"
+- "连续2年" = recurringMaxCount=2, recurringType="yearly"
+- "共8周" = recurringMaxCount=8, recurringType="weekly"
+- "for 12 weeks" = recurringMaxCount=12, recurringType="weekly"
+- "for 30 days" = recurringMaxCount=30, recurringType="daily"
+
 - "例行检查设备" (without specific frequency) -> isRecurring=false (not specific enough)
 - "买牛奶" (one-time task) -> isRecurring=false
 
