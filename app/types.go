@@ -55,6 +55,9 @@ type TodoItem struct {
 	// Occurrence tracking for recurring tasks
 	OccurrenceHistory []OccurrenceRecord `json:"occurrenceHistory,omitempty"` // History of all scheduled occurrences
 
+	// Reminder configuration
+	Reminders ReminderConfig `json:"reminders,omitempty"` // Notification reminder settings
+
 	// Deprecated fields (kept for backward compatibility, will be migrated to OccurrenceHistory)
 	CurrentPeriodCompletions []string `json:"currentPeriodCompletions,omitempty"` // DEPRECATED: Use OccurrenceHistory instead
 }
@@ -65,6 +68,13 @@ type OccurrenceRecord struct {
 	Status        string    `json:"status"`        // pending, completed, missed, skipped
 	CompletedAt   time.Time `json:"completedAt,omitempty"` // Actual completion time (may differ from scheduled time if done late)
 	Notes         string    `json:"notes,omitempty"` // Optional notes for this occurrence
+	RemindersSent []time.Duration `json:"remindersSent,omitempty"` // List of reminder durations that have been sent
+}
+
+// ReminderConfig represents notification reminder configuration for a task
+type ReminderConfig struct {
+	Enabled       bool            `json:"enabled"`       // Whether reminders are enabled
+	ReminderTimes []time.Duration `json:"reminderTimes"` // How far in advance to remind (e.g., -1h, -24h, -15m)
 }
 
 type TodoStore interface {

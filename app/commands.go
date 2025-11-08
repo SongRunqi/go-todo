@@ -187,3 +187,99 @@ func (c *AICommand) Execute(ctx *Context) error {
 
 	return DoI(warpIntend, ctx.Todos, ctx.Store)
 }
+
+// ReminderSetCommand sets reminder times for a task
+type ReminderSetCommand struct{}
+
+func (c *ReminderSetCommand) Execute(ctx *Context) error {
+	args := strings.Split(ctx.Args[1], " ")
+	if len(args) < 3 {
+		return fmt.Errorf("usage: reminder set <id> <duration1> [duration2 ...]")
+	}
+
+	id, err := strconv.Atoi(args[1])
+	if err != nil {
+		return fmt.Errorf("invalid task ID: %w", err)
+	}
+
+	// Parse reminder durations
+	var reminderTimes []time.Duration
+	for i := 2; i < len(args); i++ {
+		duration, err := parseDuration(args[i])
+		if err != nil {
+			return fmt.Errorf("invalid duration '%s': %w", args[i], err)
+		}
+		// Convert to negative duration (reminder is before the event)
+		reminderTimes = append(reminderTimes, -duration)
+	}
+
+	if len(reminderTimes) == 0 {
+		return fmt.Errorf("at least one reminder duration is required")
+	}
+
+	return SetReminders(ctx.Todos, id, reminderTimes, ctx.Store)
+}
+
+// ReminderEnableCommand enables reminders for a task
+type ReminderEnableCommand struct{}
+
+func (c *ReminderEnableCommand) Execute(ctx *Context) error {
+	args := strings.Split(ctx.Args[1], " ")
+	if len(args) < 2 {
+		return fmt.Errorf("usage: reminder enable <id>")
+	}
+
+	id, err := strconv.Atoi(args[1])
+	if err != nil {
+		return fmt.Errorf("invalid task ID: %w", err)
+	}
+
+	return EnableReminders(ctx.Todos, id, ctx.Store)
+}
+
+// ReminderDisableCommand disables reminders for a task
+type ReminderDisableCommand struct{}
+
+func (c *ReminderDisableCommand) Execute(ctx *Context) error {
+	args := strings.Split(ctx.Args[1], " ")
+	if len(args) < 2 {
+		return fmt.Errorf("usage: reminder disable <id>")
+	}
+
+	id, err := strconv.Atoi(args[1])
+	if err != nil {
+		return fmt.Errorf("invalid task ID: %w", err)
+	}
+
+	return DisableReminders(ctx.Todos, id, ctx.Store)
+}
+
+// parseDuration parses a duration string like "1h", "30m", "1d", "2h30m"
+func parseDuration(s string) (time.Duration, error) {
+	// Handle days (not supported by time.ParseDuration)
+	var days int
+	if strings.Contains(s, "d") {
+		parts := strings.Split(s, "d")
+		if len(parts) != 2 {
+			return 0, fmt.Errorf("invalid duration format")
+		}
+		var err error
+		days, err = strconv.Atoi(parts[0])
+		if err != nil {
+			return 0, err
+		}
+		s = parts[1]
+	}
+
+	var duration time.Duration
+	if s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return 0, err
+		}
+		duration = d
+	}
+
+	duration += time.Duration(days) * 24 * time.Hour
+	return duration, nil
+}

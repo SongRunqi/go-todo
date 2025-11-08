@@ -979,7 +979,7 @@ func GetTask(todos *[]TodoItem, id int) error {
 - **%s:** %s
 - **%s:** %s
 - **%s:** %s
-- **%s:** %s%s%s%s
+- **%s:** %s%s%s%s%s
 
 ## %s
 
@@ -1504,4 +1504,123 @@ func getPeriodKey(t time.Time, period string) string {
 	} else { // month
 		return fmt.Sprintf("%d-%02d", t.Year(), t.Month())
 	}
+}
+
+// SetReminders sets reminder times for a task
+func SetReminders(todos *[]TodoItem, taskID int, reminderTimes []time.Duration, store *FileTodoStore) error {
+	var task *TodoItem
+	for i := range *todos {
+		if (*todos)[i].TaskID == taskID {
+			task = &(*todos)[i]
+			break
+		}
+	}
+
+	if task == nil {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+
+	task.Reminders.Enabled = true
+	task.Reminders.ReminderTimes = reminderTimes
+
+	err := store.Save(todos, false)
+	if err != nil {
+		return fmt.Errorf("failed to save tasks: %w", err)
+	}
+
+	logger.Infof("Reminders set for task %d: %v", taskID, reminderTimes)
+	fmt.Printf("✅ 已为任务 %d 设置 %d 个提醒\n", taskID, len(reminderTimes))
+	for _, d := range reminderTimes {
+		fmt.Printf("  - 提前 %s\n", formatReminderDuration(d))
+	}
+
+	return nil
+}
+
+// EnableReminders enables reminders for a task
+func EnableReminders(todos *[]TodoItem, taskID int, store *FileTodoStore) error {
+	var task *TodoItem
+	for i := range *todos {
+		if (*todos)[i].TaskID == taskID {
+			task = &(*todos)[i]
+			break
+		}
+	}
+
+	if task == nil {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+
+	if len(task.Reminders.ReminderTimes) == 0 {
+		return fmt.Errorf("task %d has no reminder times configured", taskID)
+	}
+
+	task.Reminders.Enabled = true
+
+	err := store.Save(todos, false)
+	if err != nil {
+		return fmt.Errorf("failed to save tasks: %w", err)
+	}
+
+	logger.Infof("Reminders enabled for task %d", taskID)
+	fmt.Printf("✅ 已启用任务 %d 的提醒\n", taskID)
+
+	return nil
+}
+
+// DisableReminders disables reminders for a task
+func DisableReminders(todos *[]TodoItem, taskID int, store *FileTodoStore) error {
+	var task *TodoItem
+	for i := range *todos {
+		if (*todos)[i].TaskID == taskID {
+			task = &(*todos)[i]
+			break
+		}
+	}
+
+	if task == nil {
+		return fmt.Errorf("task %d not found", taskID)
+	}
+
+	task.Reminders.Enabled = false
+
+	err := store.Save(todos, false)
+	if err != nil {
+		return fmt.Errorf("failed to save tasks: %w", err)
+	}
+
+	logger.Infof("Reminders disabled for task %d", taskID)
+	fmt.Printf("✅ 已禁用任务 %d 的提醒\n", taskID)
+
+	return nil
+}
+
+// formatReminderDuration formats a reminder duration for display
+func formatReminderDuration(d time.Duration) string {
+	d = -d // Convert negative duration to positive for display
+
+	hours := int(d.Hours())
+	minutes := int(d.Minutes()) % 60
+
+	if hours > 24 {
+		days := hours / 24
+		hours = hours % 24
+		if hours > 0 {
+			return fmt.Sprintf("%d天%d小时", days, hours)
+		}
+		return fmt.Sprintf("%d天", days)
+	}
+
+	if hours > 0 {
+		if minutes > 0 {
+			return fmt.Sprintf("%d小时%d分钟", hours, minutes)
+		}
+		return fmt.Sprintf("%d小时", hours)
+	}
+
+	if minutes > 0 {
+		return fmt.Sprintf("%d分钟", minutes)
+	}
+
+	return "即将开始"
 }
