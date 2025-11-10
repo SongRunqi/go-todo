@@ -1448,13 +1448,18 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 
 		fmt.Printf("   ✅ Generated summary: %s\n\n", title)
 
+		// Format task name as date range
+		taskName := fmt.Sprintf("what I do %s ~ %s",
+			periodData.StartTime.Format("1.2"),
+			periodData.EndTime.Format("1.2"))
+
 		// Create summary task with unique ID
 		summaryTask := TodoItem{
 			TaskID:     GetLastId(&newBackupTodos),
 			CreateTime: periodData.StartTime,
 			EndTime:    periodData.EndTime,
 			User:       "System",
-			TaskName:   title,
+			TaskName:   taskName,
 			TaskDesc:   summary,
 			Status:     "completed",
 			DueDate:    periodKey,
