@@ -24,6 +24,7 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 - **Priority Management**: Automatic urgency calculation based on deadlines
 - **Time-Based Sorting**: Tasks sorted by due date with countdown timers
 - **Multiple Output Formats**: JSON (Alfred-compatible) and Markdown formats
+- **🔄 Auto-Update**: Built-in self-update mechanism using GitHub Releases (serverless)
 
 ### Developer Features
 - **🌍 Internationalization (i18n)**: Full support for English and Chinese
@@ -267,6 +268,8 @@ todo [command] [arguments] [flags]
 - `back` - List completed tasks
 - `back get <id>` - View a completed task
 - `back restore <id>` - Restore a completed task
+- `version` - Show version information
+- `upgrade` - Check for updates and upgrade to the latest version
 - `help` - Get help about any command
 - `completion` - Generate shell completion scripts
 
@@ -440,6 +443,29 @@ Manage language settings for the application:
 
 The language preference is saved to `~/.todo/config.json` and persists across all commands. See the [Internationalization](#internationalization-i18n) section for more details.
 
+### Version & Update Management
+
+Check your current version and manage updates:
+
+```bash
+# Show version information
+./todo version
+
+# Check for updates
+./todo upgrade --check
+
+# Upgrade to the latest version
+./todo upgrade
+```
+
+The application uses a serverless auto-update mechanism via GitHub Releases:
+- **Secure**: SHA256 checksum verification
+- **Safe**: Automatic backup and rollback on failure
+- **Multi-platform**: Supports Linux, macOS, Windows (amd64/arm64)
+- **Zero-cost**: No dedicated update server required
+
+See [AUTO_UPDATE.md](AUTO_UPDATE.md) for technical details about the auto-update mechanism.
+
 ## Building for Different Platforms
 
 ### Build for Current Platform
@@ -557,7 +583,17 @@ Tasks are stored in JSON files:
 
 ## Recent Updates
 
-### Version 1.3.0 (Latest)
+### Version 1.4.0 (Latest)
+
+1. **Auto-Update Feature**:
+   - Built-in self-update mechanism using GitHub Releases
+   - SHA256 checksum verification for security
+   - Automatic backup and rollback on failure
+   - Multi-platform support (Linux, macOS, Windows)
+   - `version` command to show build information
+   - `upgrade` command to update to the latest version
+
+### Version 1.3.0
 
 1. **Internationalization (i18n) Support**:
    - Full support for English and Chinese languages
