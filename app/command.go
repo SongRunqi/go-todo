@@ -1369,8 +1369,15 @@ func CompactTasks(store *FileTodoStore, period string) error {
 	fmt.Printf("Compacting tasks by %s using AI...\n", period)
 	fmt.Println("==============================================")
 
-	// Generate summaries for each period
-	summaryTasks := make([]TodoItem, 0)
+	// Remove original tasks from backup first to prepare the base list
+	newBackupTodos := make([]TodoItem, 0)
+	for i, task := range backupTodos {
+		if !tasksToRemove[i] {
+			newBackupTodos = append(newBackupTodos, task)
+		}
+	}
+
+	// Generate summaries for each period and assign unique IDs
 	totalCompacted := 0
 
 	for _, periodKey := range periods {
@@ -1441,9 +1448,9 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 
 		fmt.Printf("   ✅ Generated summary: %s\n\n", title)
 
-		// Create summary task
+		// Create summary task with unique ID
 		summaryTask := TodoItem{
-			TaskID:     0, // Will be set when added to main list if needed
+			TaskID:     GetLastId(&newBackupTodos),
 			CreateTime: periodData.StartTime,
 			EndTime:    periodData.EndTime,
 			User:       "System",
@@ -1454,20 +1461,10 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 			Urgent:     "low",
 		}
 
-		summaryTasks = append(summaryTasks, summaryTask)
+		// Add summary task to backup immediately so next ID is unique
+		newBackupTodos = append(newBackupTodos, summaryTask)
 		totalCompacted += len(tasks)
 	}
-
-	// Remove original tasks from backup and add summaries
-	newBackupTodos := make([]TodoItem, 0)
-	for i, task := range backupTodos {
-		if !tasksToRemove[i] {
-			newBackupTodos = append(newBackupTodos, task)
-		}
-	}
-
-	// Add summary tasks to backup
-	newBackupTodos = append(newBackupTodos, summaryTasks...)
 
 	// Save updated backup
 	err = store.Save(&newBackupTodos, true)
@@ -1475,11 +1472,12 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 		return fmt.Errorf("failed to save compacted backup: %w", err)
 	}
 
+	summaryCount := len(periods)
 	fmt.Println("==============================================")
-	fmt.Printf("✅ Successfully compacted %d tasks into %d summaries\n", totalCompacted, len(summaryTasks))
+	fmt.Printf("✅ Successfully compacted %d tasks into %d summaries\n", totalCompacted, summaryCount)
 	fmt.Println("==============================================")
 
-	logger.Infof("Compacted %d tasks into %d summaries by %s", totalCompacted, len(summaryTasks), period)
+	logger.Infof("Compacted %d tasks into %d summaries by %s", totalCompacted, summaryCount, period)
 	return nil
 }
 
