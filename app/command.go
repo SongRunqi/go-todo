@@ -1446,12 +1446,13 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 			summary = fmt.Sprintf("Period: %s. Completed %d tasks, deleted %d tasks.", periodKey, completedCount, deletedCount)
 		}
 
-		fmt.Printf("   ✅ Generated summary: %s\n\n", title)
-
-		// Format task name as date range
-		taskName := fmt.Sprintf("what I do %s ~ %s",
+		// Format task name with AI-generated title and date range
+		taskName := fmt.Sprintf("%s %s ~ %s",
+			title,
 			periodData.StartTime.Format("1.2"),
 			periodData.EndTime.Format("1.2"))
+
+		fmt.Printf("   ✅ Generated task name: %s\n\n", taskName)
 
 		// Create summary task with unique ID
 		summaryTask := TodoItem{
