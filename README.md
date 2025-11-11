@@ -60,17 +60,40 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 
 ### Prerequisites
 
-- **Go 1.21 or higher** - [Download Go](https://golang.org/dl/)
 - **DeepSeek API key** (or compatible LLM API) - [Get API Key](https://platform.deepseek.com/)
 
-Check your Go version:
+### Recommended: Quick Install from Release (No Go Required)
+
+The easiest way to install - downloads pre-built binary from GitHub Releases:
+
 ```bash
-go version  # Should be 1.21 or higher
+# Download and run the installation script
+curl -fsSL https://raw.githubusercontent.com/SongRunqi/go-todo/main/install.sh | bash
+
+# Or if you prefer to review the script first:
+curl -fsSL https://raw.githubusercontent.com/SongRunqi/go-todo/main/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
 ```
 
-### Recommended: Using Installation Script
+The script will:
+- ✓ Auto-detect your OS and architecture
+- ✓ Download the latest pre-built binary from GitHub Releases
+- ✓ Verify SHA256 checksum for security
+- ✓ Install to `~/.local/bin/todo`
+- ✓ Initialize todo directories and config
 
-The easiest way to install:
+**Supported platforms:**
+- Linux (amd64, arm64)
+- macOS (amd64, arm64 / Apple Silicon)
+- Windows (amd64)
+
+### Alternative: Install from Source
+
+For developers or if you want to build from the latest source:
+
+**Prerequisites:**
+- **Go 1.21 or higher** - [Download Go](https://golang.org/dl/)
 
 ```bash
 # Clone the repository
@@ -78,17 +101,11 @@ git clone https://github.com/SongRunqi/go-todo.git
 cd go-todo
 
 # Run the installation script
-chmod +x install.sh
-./install.sh
+chmod +x install-from-source.sh
+./install-from-source.sh
 ```
 
-The script will:
-- ✓ Build the optimized binary
-- ✓ Install to `~/.local/bin/todo`
-- ✓ Initialize todo directories and config
-- ✓ Guide you through language selection
-
-### Alternative: Using Makefile
+### Using Makefile
 
 ```bash
 # Clone the repository
