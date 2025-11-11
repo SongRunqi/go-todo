@@ -57,14 +57,11 @@ jobs:
         COMMIT: ${{ steps.git_info.outputs.COMMIT }}
         BUILD_DATE: ${{ steps.git_info.outputs.DATE }}
       run: |
-        # Set binary name
-        BINARY_NAME="todo"
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          BINARY_NAME="todo.exe"
-        fi
-
         # Set output name
-        OUTPUT_NAME="todo-${{ matrix.goos }}-${{ matrix.goarch }}-${BINARY_NAME}"
+        OUTPUT_NAME="todo-${{ matrix.goos }}-${{ matrix.goarch }}"
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          OUTPUT_NAME="${OUTPUT_NAME}.exe"
+        fi
 
         # Build with version information
         go build -v \

@@ -197,12 +197,11 @@ func (u *Updater) calculateSHA256(data []byte) string {
 
 // getAssetName returns the asset name for the current platform
 func (u *Updater) getAssetName() string {
-	binary := "todo"
+	name := fmt.Sprintf("todo-%s-%s", runtime.GOOS, runtime.GOARCH)
 	if runtime.GOOS == "windows" {
-		binary = "todo.exe"
+		name += ".exe"
 	}
-
-	return fmt.Sprintf("todo-%s-%s-%s", runtime.GOOS, runtime.GOARCH, binary)
+	return name
 }
 
 // replaceBinary replaces the current binary with the new one
