@@ -48,6 +48,7 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 ## Table of Contents
 
 - [Installation](#installation)
+- [Uninstallation](#uninstallation)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Usage](#usage)
@@ -132,6 +133,24 @@ source ~/.bashrc
 todo init
 todo list
 ```
+
+## Uninstallation
+
+If you need to uninstall todo-go from your system:
+
+```bash
+# Run the uninstallation script
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
+The script will:
+- ✓ Remove the todo binary from `~/.local/bin/todo`
+- ✓ Ask if you want to remove your todo data directory (`~/.todo`)
+- ✓ Create a backup before removing data (if you choose to remove it)
+- ✓ Notify you about any PATH modifications in shell config files
+
+**Note**: The uninstall script will ask for confirmation before removing anything and will create a backup of your data if you choose to remove it.
 
 ## Quick Start
 
