@@ -58,17 +58,40 @@
 
 ### 前置要求
 
-- **Go 1.21 或更高版本** - [下载 Go](https://golang.org/dl/)
 - **DeepSeek API 密钥**（或兼容的 LLM API）- [获取 API 密钥](https://platform.deepseek.com/)
 
-检查你的 Go 版本：
+### 推荐：从 Release 快速安装（无需 Go）
+
+最简单的安装方法 - 从 GitHub Releases 下载预编译的二进制文件：
+
 ```bash
-go version  # 应该是 1.21 或更高版本
+# 下载并运行安装脚本
+curl -fsSL https://raw.githubusercontent.com/SongRunqi/go-todo/main/install.sh | bash
+
+# 或者如果你想先查看脚本：
+curl -fsSL https://raw.githubusercontent.com/SongRunqi/go-todo/main/install.sh -o install.sh
+chmod +x install.sh
+./install.sh
 ```
 
-### 推荐：使用安装脚本
+脚本会：
+- ✓ 自动检测你的操作系统和架构
+- ✓ 从 GitHub Releases 下载最新的预编译二进制文件
+- ✓ 验证 SHA256 校验和以确保安全性
+- ✓ 安装到 `~/.local/bin/todo`
+- ✓ 初始化待办目录和配置
 
-最简单的安装方法：
+**支持的平台：**
+- Linux (amd64, arm64)
+- macOS (amd64, arm64 / Apple Silicon)
+- Windows (amd64)
+
+### 替代方法：从源码安装
+
+对于开发者或想要从最新源码构建的用户：
+
+**前置要求：**
+- **Go 1.21 或更高版本** - [下载 Go](https://golang.org/dl/)
 
 ```bash
 # 克隆仓库
@@ -76,17 +99,11 @@ git clone https://github.com/SongRunqi/go-todo.git
 cd go-todo
 
 # 运行安装脚本
-chmod +x install.sh
-./install.sh
+chmod +x install-from-source.sh
+./install-from-source.sh
 ```
 
-脚本会：
-- ✓ 构建优化的二进制文件
-- ✓ 安装到 `~/.local/bin/todo`
-- ✓ 初始化待办目录和配置
-- ✓ 引导您选择语言
-
-### 替代方法：使用 Makefile
+### 使用 Makefile
 
 ```bash
 # 克隆仓库
