@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/SongRunqi/go-todo)](https://goreportcard.com/report/github.com/SongRunqi/go-todo)
 [![codecov](https://codecov.io/gh/SongRunqi/go-todo/branch/main/graph/badge.svg)](https://codecov.io/gh/SongRunqi/go-todo)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/SongRunqi/go-todo)](go.mod)
+[![Go Version](https://img.shields.io/badge/Go-1.24.5-blue.svg)](go.mod)
 
 [English](README.md) | [中文](README_zh.md)
 
@@ -24,6 +24,7 @@
 - **优先级管理**：基于截止日期自动计算紧急程度
 - **基于时间的排序**：任务按到期日期排序，带有倒计时定时器
 - **多种输出格式**：JSON（兼容 Alfred）和 Markdown 格式
+- **🔄 自动更新**：内置自更新机制，使用 GitHub Releases（无需服务器）
 
 ### 开发者功能
 - **🌍 国际化 (i18n)**：完整支持中文和英文
@@ -47,6 +48,7 @@
 ## 目录
 
 - [安装](#安装)
+- [卸载](#卸载)
 - [快速开始](#快速开始)
 - [配置](#配置)
 - [使用方法](#使用方法)
@@ -148,6 +150,24 @@ source ~/.bashrc
 todo init
 todo list
 ```
+
+## 卸载
+
+如果您需要从系统中卸载 todo-go：
+
+```bash
+# 运行卸载脚本
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
+脚本会：
+- ✓ 从 `~/.local/bin/todo` 删除 todo 二进制文件
+- ✓ 询问是否删除待办数据目录（`~/.todo`）
+- ✓ 在删除数据前创建备份（如果选择删除）
+- ✓ 通知您 shell 配置文件中的 PATH 修改
+
+**注意**：卸载脚本会在删除任何内容前请求确认，如果选择删除数据，会创建数据备份。
 
 ## 快速开始
 
@@ -284,6 +304,11 @@ todo [命令] [参数] [标志]
 - `back` - 列出已完成的任务
 - `back get <id>` - 查看已完成的任务
 - `back restore <id>` - 恢复已完成的任务
+- `compact` - 按周或月汇总已完成/已删除的任务
+- `copy` - 复制已完成的任务到剪贴板，按周分组
+- `lang` - 语言管理（列出、设置、查看当前语言）
+- `version` - 显示版本信息
+- `upgrade` - 检查更新并升级到最新版本
 - `help` - 获取任何命令的帮助
 - `completion` - 生成 shell 补全脚本
 
@@ -457,6 +482,61 @@ AI 将自动：
 
 语言偏好将保存到 `~/.todo/config.json` 并在所有命令中保持有效。更多详情请参阅[国际化](#国际化-i18n)部分。
 
+### 汇总任务
+
+按时间段汇总已完成和已删除的任务：
+
+```bash
+# 按周汇总（默认）
+./todo compact
+
+# 按月汇总
+./todo compact --period month
+# 或
+./todo compact -p month
+```
+
+compact 命令会对备份文件中的已完成和已删除任务进行分组，提供按指定时间段组织的摘要视图。
+
+### 复制已完成的任务
+
+将已完成的任务复制到剪贴板，便于分享或报告：
+
+```bash
+# 复制所有已完成的任务
+./todo copy
+
+# 仅复制本周完成的任务
+./todo copy --week
+# 或
+./todo copy -w
+```
+
+任务会被格式化并复制到系统剪贴板，按周分组，方便粘贴到电子邮件、报告或文档中。
+
+### 版本与更新管理
+
+检查当前版本并管理更新：
+
+```bash
+# 显示版本信息
+./todo version
+
+# 检查更新
+./todo upgrade --check
+
+# 升级到最新版本
+./todo upgrade
+```
+
+应用程序使用基于 GitHub Releases 的无服务器自动更新机制：
+- **安全**：SHA256 校验和验证
+- **安全**：失败时自动备份和回滚
+- **多平台**：支持 Linux、macOS、Windows（amd64/arm64）
+- **零成本**：无需专用更新服务器
+
+有关自动更新机制的技术细节，请参阅 [AUTO_UPDATE.md](AUTO_UPDATE.md)。
+
 ## 跨平台构建
 
 ### 为当前平台构建
@@ -586,7 +666,12 @@ go-todo/
 │   ├── complete.go             # 完成命令
 │   ├── delete.go               # 删除命令
 │   ├── update.go               # 更新命令
-│   └── back.go                 # 备份命令
+│   ├── back.go                 # 备份命令
+│   ├── compact.go              # 汇总任务命令
+│   ├── copy.go                 # 复制任务命令
+│   ├── lang.go                 # 语言管理
+│   ├── version.go              # 版本命令
+│   └── upgrade.go              # 升级命令
 ├── app/                         # 业务逻辑
 │   ├── command.go              # 核心任务操作
 │   ├── commands.go             # 命令实现
@@ -612,9 +697,13 @@ go-todo/
 │   │   └── mock.go            # 测试模拟
 │   ├── storage/                # 存储实现
 │   │   └── memory.go          # 内存存储
-│   └── output/                 # 终端输出
-│       ├── color.go           # 彩色输出
-│       └── spinner.go         # 进度指示器
+│   ├── output/                 # 终端输出
+│   │   ├── color.go           # 彩色输出
+│   │   └── spinner.go         # 进度指示器
+│   ├── updater/                # 自动更新功能
+│   │   └── updater.go         # 更新管理器
+│   └── version/                # 版本信息
+│       └── version.go         # 版本管理
 ├── .github/workflows/           # CI/CD 流水线
 │   └── ci.yml                  # GitHub Actions
 ├── .golangci.yml               # Linter 配置
@@ -802,7 +891,29 @@ chmod +x todo
 
 ## 最近更新
 
-### 版本 1.3.0（最新）
+### 版本 1.5.0（最新）
+
+1. **增强的任务管理**：
+   - `compact` 命令，用于按周/月汇总已完成/已删除的任务
+   - `copy` 命令，用于将已完成的任务复制到剪贴板
+   - 改进的任务组织和报告功能
+
+2. **改进的安装和管理**：
+   - 增强的安装脚本，支持从 GitHub Releases 下载
+   - 添加卸载脚本以完整删除
+   - 更好的二进制文件管理和更新
+
+### 版本 1.4.0
+
+1. **自动更新功能**：
+   - 使用 GitHub Releases 的内置自更新机制
+   - SHA256 校验和验证以确保安全性
+   - 失败时自动备份和回滚
+   - 多平台支持（Linux、macOS、Windows）
+   - `version` 命令显示构建信息
+   - `upgrade` 命令更新到最新版本
+
+### 版本 1.3.0
 
 1. **国际化 (i18n) 支持**：
    - 完整支持中文和英文
