@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/SongRunqi/go-todo)](https://goreportcard.com/report/github.com/SongRunqi/go-todo)
 [![codecov](https://codecov.io/gh/SongRunqi/go-todo/branch/main/graph/badge.svg)](https://codecov.io/gh/SongRunqi/go-todo)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/SongRunqi/go-todo)](go.mod)
+[![Go Version](https://img.shields.io/badge/Go-1.24.5-blue.svg)](go.mod)
 
 [English](README.md) | [中文](README_zh.md)
 
@@ -304,6 +304,9 @@ todo [command] [arguments] [flags]
 - `back` - List completed tasks
 - `back get <id>` - View a completed task
 - `back restore <id>` - Restore a completed task
+- `compact` - Compact and summarize completed/deleted tasks by week or month
+- `copy` - Copy completed tasks to clipboard, grouped by week
+- `lang` - Language management (list, set, current)
 - `version` - Show version information
 - `upgrade` - Check for updates and upgrade to the latest version
 - `help` - Get help about any command
@@ -479,6 +482,38 @@ Manage language settings for the application:
 
 The language preference is saved to `~/.todo/config.json` and persists across all commands. See the [Internationalization](#internationalization-i18n) section for more details.
 
+### Compact Tasks
+
+Summarize completed and deleted tasks by time period:
+
+```bash
+# Compact by week (default)
+./todo compact
+
+# Compact by month
+./todo compact --period month
+# or
+./todo compact -p month
+```
+
+The compact command groups completed and deleted tasks from your backup file, providing a summary view organized by the specified time period.
+
+### Copy Completed Tasks
+
+Copy completed tasks to your clipboard for easy sharing or reporting:
+
+```bash
+# Copy all completed tasks
+./todo copy
+
+# Copy only this week's completed tasks
+./todo copy --week
+# or
+./todo copy -w
+```
+
+Tasks are formatted and copied to your system clipboard, grouped by week for easy pasting into emails, reports, or documents.
+
 ### Version & Update Management
 
 Check your current version and manage updates:
@@ -619,7 +654,19 @@ Tasks are stored in JSON files:
 
 ## Recent Updates
 
-### Version 1.4.0 (Latest)
+### Version 1.5.0 (Latest)
+
+1. **Enhanced Task Management**:
+   - `compact` command for summarizing completed/deleted tasks by week/month
+   - `copy` command for copying completed tasks to clipboard
+   - Improved task organization and reporting capabilities
+
+2. **Improved Installation & Management**:
+   - Enhanced install script with GitHub Releases download
+   - Added uninstall script for complete removal
+   - Better binary management and updates
+
+### Version 1.4.0
 
 1. **Auto-Update Feature**:
    - Built-in self-update mechanism using GitHub Releases
@@ -667,7 +714,12 @@ go-todo/
 │   ├── complete.go             # Complete command
 │   ├── delete.go               # Delete command
 │   ├── update.go               # Update command
-│   └── back.go                 # Backup commands
+│   ├── back.go                 # Backup commands
+│   ├── compact.go              # Compact tasks command
+│   ├── copy.go                 # Copy tasks command
+│   ├── lang.go                 # Language management
+│   ├── version.go              # Version command
+│   └── upgrade.go              # Upgrade command
 ├── app/                         # Business logic
 │   ├── command.go              # Core task operations
 │   ├── commands.go             # Command implementations
@@ -693,9 +745,13 @@ go-todo/
 │   │   └── mock.go            # Mock for testing
 │   ├── storage/                # Storage implementations
 │   │   └── memory.go          # In-memory storage
-│   └── output/                 # Terminal output
-│       ├── color.go           # Colored output
-│       └── spinner.go         # Progress indicators
+│   ├── output/                 # Terminal output
+│   │   ├── color.go           # Colored output
+│   │   └── spinner.go         # Progress indicators
+│   ├── updater/                # Auto-update functionality
+│   │   └── updater.go         # Update manager
+│   └── version/                # Version information
+│       └── version.go         # Version management
 ├── .github/workflows/           # CI/CD pipeline
 │   └── ci.yml                  # GitHub Actions
 ├── .golangci.yml               # Linter configuration
