@@ -4,7 +4,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/SongRunqi/go-todo)](https://goreportcard.com/report/github.com/SongRunqi/go-todo)
 [![codecov](https://codecov.io/gh/SongRunqi/go-todo/branch/main/graph/badge.svg)](https://codecov.io/gh/SongRunqi/go-todo)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/Go-1.24.5-blue.svg)](go.mod)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](go.mod)
+[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](https://github.com/SongRunqi/go-todo/releases)
 
 [English](README.md) | [中文](README_zh.md)
 
@@ -20,6 +21,12 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
   - Create, list, get, update, complete, delete tasks
   - View and manage completed tasks (backup)
   - Restore completed tasks back to active list
+- **🔄 Recurring Tasks**: Intelligent recurring task management
+  - Support for daily, weekly, monthly, and yearly patterns
+  - Specific weekday scheduling (e.g., "every Monday and Wednesday")
+  - Event duration tracking (e.g., "2pm to 3pm class")
+  - Occurrence history and completion tracking
+  - Flexible repetition limits (finite or infinite)
 - **Detailed Descriptions**: AI generates comprehensive task descriptions with context and expected outcomes
 - **Priority Management**: Automatic urgency calculation based on deadlines
 - **Time-Based Sorting**: Tasks sorted by due date with countdown timers
@@ -464,6 +471,97 @@ Remove a task permanently:
 ./todo "delete 1"
 ```
 
+### Recurring Tasks
+
+Create and manage recurring tasks that repeat automatically on a schedule.
+
+#### Creating Recurring Tasks
+
+Use natural language to create recurring tasks - AI will automatically detect recurring patterns:
+
+```bash
+# Daily tasks
+./todo "Exercise every day at 7am"
+./todo "Daily standup meeting at 9am"
+
+# Weekly tasks
+./todo "Team meeting every Monday at 10am"
+./todo "Yoga class every Wednesday and Friday at 6pm"
+
+# Monthly tasks
+./todo "Pay rent on the 1st of every month"
+./todo "Monthly review meeting every first Monday"
+
+# Yearly tasks
+./todo "Annual health checkup every March 15th"
+
+# With specific duration
+./todo "Monday/Wednesday 2pm-3pm class for 4 weeks"
+
+# Limited repetitions
+./todo "Review codebase every day for the next 5 days"
+```
+
+#### Recurring Task Fields
+
+When AI creates a recurring task, it sets these fields:
+
+- **isRecurring**: `true` for recurring tasks
+- **recurringType**: Pattern type (`daily`, `weekly`, `monthly`, `yearly`)
+- **recurringInterval**: Interval between occurrences (e.g., every 2 days)
+- **recurringWeekdays**: Specific weekdays for weekly tasks (e.g., `[1, 3, 5]` for Mon/Wed/Fri)
+- **recurringMaxCount**: Maximum number of repetitions (0 = infinite)
+- **eventDuration**: Duration of each occurrence (e.g., 1 hour for "2pm-3pm")
+- **occurrenceHistory**: Tracks all scheduled occurrences and their completion status
+
+#### Viewing Recurring Tasks
+
+```bash
+# List all tasks (recurring tasks show their next occurrence)
+./todo list
+
+# Get detailed information about a recurring task
+./todo get 1
+```
+
+Output includes:
+- Next scheduled occurrence time
+- Event duration (if applicable)
+- Completion history
+- Remaining repetitions
+
+#### Completing Recurring Tasks
+
+When you complete a recurring task occurrence:
+
+```bash
+./todo complete 1
+```
+
+The system automatically:
+1. Marks the current occurrence as completed
+2. Calculates the next occurrence based on the recurring pattern
+3. Updates the task's occurrence history
+4. Continues until reaching the maximum count (if set)
+
+#### Example: Weekly Class Schedule
+
+```bash
+# Create a recurring task for a class
+./todo "Attend Python class every Monday and Wednesday 2pm-3pm for 8 weeks"
+
+# After creation, you'll see:
+# - Task with next occurrence: Monday 2:00 PM
+# - Event duration: 1 hour
+# - Occurrence history: 16 scheduled occurrences (2 per week × 8 weeks)
+
+# Complete after attending first class
+./todo complete 1
+
+# The task automatically updates to show Wednesday's class
+# Occurrence history shows Monday as "completed"
+```
+
 ### Language Management
 
 Manage language settings for the application:
@@ -654,21 +752,28 @@ Tasks are stored in JSON files:
 
 ## Recent Updates
 
-### Version 1.5.0 (Latest)
+### Version 1.0.0 (Current)
 
-1. **Enhanced Task Management**:
+1. **🔄 Recurring Tasks**:
+   - Intelligent recurring task management with AI-powered pattern detection
+   - Support for daily, weekly, monthly, and yearly patterns
+   - Specific weekday scheduling (e.g., "every Monday and Wednesday")
+   - Event duration tracking (e.g., "2pm-3pm class")
+   - Occurrence history with completion tracking
+   - Flexible repetition limits (finite or infinite)
+
+2. **🌍 Internationalization (i18n)**:
+   - Full support for English and Chinese languages
+   - Auto-detects system language or use `TODO_LANG` environment variable
+   - All user-facing text fully translated (commands, messages, errors, etc.)
+   - `lang` command for language management
+
+3. **✨ Enhanced Task Management**:
    - `compact` command for summarizing completed/deleted tasks by week/month
    - `copy` command for copying completed tasks to clipboard
    - Improved task organization and reporting capabilities
 
-2. **Improved Installation & Management**:
-   - Enhanced install script with GitHub Releases download
-   - Added uninstall script for complete removal
-   - Better binary management and updates
-
-### Version 1.4.0
-
-1. **Auto-Update Feature**:
+4. **🔄 Auto-Update Feature**:
    - Built-in self-update mechanism using GitHub Releases
    - SHA256 checksum verification for security
    - Automatic backup and rollback on failure
@@ -676,29 +781,28 @@ Tasks are stored in JSON files:
    - `version` command to show build information
    - `upgrade` command to update to the latest version
 
-### Version 1.3.0
+5. **📦 Installation & Management**:
+   - Enhanced install script with GitHub Releases download
+   - Uninstall script for complete removal
+   - Better binary management and updates
 
-1. **Internationalization (i18n) Support**:
-   - Full support for English and Chinese languages
-   - Auto-detects system language or use `TODO_LANG` environment variable
-   - All user-facing text fully translated (commands, messages, errors, etc.)
-
-2. **CI/CD Pipeline**:
+6. **🚀 CI/CD Pipeline**:
    - GitHub Actions automated testing
    - Multi-platform builds (Linux, macOS, Windows)
    - Linting and formatting checks
    - Coverage reporting integration
 
-3. **UX Improvements**:
+7. **🎨 UX Improvements**:
    - Colored terminal output with status indicators
    - Progress spinners for AI operations
    - Error messages with actionable suggestions
    - Shell completion support (Bash, Zsh, Fish, PowerShell)
 
-4. **Performance Optimizations**:
+8. **⚡ Performance & Quality**:
    - Comprehensive benchmark suite
+   - 73%+ test coverage with unit and integration tests
    - Optimized build flags
-   - Performance baseline metrics
+   - Input validation layer with clear error messages
 
 ## Development
 

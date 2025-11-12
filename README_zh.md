@@ -4,7 +4,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/SongRunqi/go-todo)](https://goreportcard.com/report/github.com/SongRunqi/go-todo)
 [![codecov](https://codecov.io/gh/SongRunqi/go-todo/branch/main/graph/badge.svg)](https://codecov.io/gh/SongRunqi/go-todo)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/SongRunqi/go-todo)](go.mod)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](go.mod)
+[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](https://github.com/SongRunqi/go-todo/releases)
 
 [English](README.md) | [中文](README_zh.md)
 
@@ -20,10 +21,17 @@
   - 创建、列表、获取、更新、完成、删除任务
   - 查看和管理已完成任务（备份）
   - 恢复已完成的任务到活动列表
+- **🔄 循环任务**：智能循环任务管理
+  - 支持每日、每周、每月和每年模式
+  - 特定工作日调度（例如"每周一和周三"）
+  - 事件持续时间跟踪（例如"下午2点到3点的课程"）
+  - 发生历史和完成跟踪
+  - 灵活的重复次数限制（有限或无限）
 - **详细描述**：AI 生成包含上下文和预期结果的综合任务描述
 - **优先级管理**：基于截止日期自动计算紧急程度
 - **基于时间的排序**：任务按到期日期排序，带有倒计时定时器
 - **多种输出格式**：JSON（兼容 Alfred）和 Markdown 格式
+- **🔄 自动更新**：内置自更新机制，使用 GitHub Releases（无需服务器）
 
 ### 开发者功能
 - **🌍 国际化 (i18n)**：完整支持中文和英文
@@ -47,6 +55,7 @@
 ## 目录
 
 - [安装](#安装)
+- [卸载](#卸载)
 - [快速开始](#快速开始)
 - [配置](#配置)
 - [使用方法](#使用方法)
@@ -148,6 +157,24 @@ source ~/.bashrc
 todo init
 todo list
 ```
+
+## 卸载
+
+如果您需要从系统中卸载 todo-go：
+
+```bash
+# 运行卸载脚本
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
+脚本会：
+- ✓ 从 `~/.local/bin/todo` 删除 todo 二进制文件
+- ✓ 询问是否删除待办数据目录（`~/.todo`）
+- ✓ 在删除数据前创建备份（如果选择删除）
+- ✓ 通知您 shell 配置文件中的 PATH 修改
+
+**注意**：卸载脚本会在删除任何内容前请求确认，如果选择删除数据，会创建数据备份。
 
 ## 快速开始
 
@@ -284,6 +311,11 @@ todo [命令] [参数] [标志]
 - `back` - 列出已完成的任务
 - `back get <id>` - 查看已完成的任务
 - `back restore <id>` - 恢复已完成的任务
+- `compact` - 按周或月汇总已完成/已删除的任务
+- `copy` - 复制已完成的任务到剪贴板，按周分组
+- `lang` - 语言管理（列出、设置、查看当前语言）
+- `version` - 显示版本信息
+- `upgrade` - 检查更新并升级到最新版本
 - `help` - 获取任何命令的帮助
 - `completion` - 生成 shell 补全脚本
 
@@ -439,6 +471,97 @@ AI 将自动：
 ./todo delete 1
 ```
 
+### 循环任务
+
+创建和管理按计划自动重复的循环任务。
+
+#### 创建循环任务
+
+使用自然语言创建循环任务 - AI 会自动检测循环模式：
+
+```bash
+# 每日任务
+./todo "每天早上7点运动"
+./todo "每日早上9点站会"
+
+# 每周任务
+./todo "每周一上午10点团队会议"
+./todo "每周三和周五下午6点瑜伽课"
+
+# 每月任务
+./todo "每月1号交房租"
+./todo "每月第一个周一月度评审会议"
+
+# 每年任务
+./todo "每年3月15日年度体检"
+
+# 带特定时长
+./todo "周一/周三下午2点到3点上课，持续4周"
+
+# 限制重复次数
+./todo "未来5天每天复习代码"
+```
+
+#### 循环任务字段
+
+当 AI 创建循环任务时，它会设置这些字段：
+
+- **isRecurring**：`true` 表示循环任务
+- **recurringType**：模式类型（`daily`、`weekly`、`monthly`、`yearly`）
+- **recurringInterval**：发生间隔（例如每2天）
+- **recurringWeekdays**：每周任务的特定工作日（例如 `[1, 3, 5]` 表示周一/周三/周五）
+- **recurringMaxCount**：最大重复次数（0 = 无限）
+- **eventDuration**：每次发生的持续时间（例如1小时表示"下午2点-3点"）
+- **occurrenceHistory**：跟踪所有计划的发生和完成状态
+
+#### 查看循环任务
+
+```bash
+# 列出所有任务（循环任务显示下次发生时间）
+./todo list
+
+# 获取循环任务的详细信息
+./todo get 1
+```
+
+输出包括：
+- 下次计划发生时间
+- 事件持续时间（如果适用）
+- 完成历史
+- 剩余重复次数
+
+#### 完成循环任务
+
+当你完成循环任务的一次发生时：
+
+```bash
+./todo complete 1
+```
+
+系统会自动：
+1. 将当前发生标记为已完成
+2. 根据循环模式计算下次发生时间
+3. 更新任务的发生历史
+4. 继续直到达到最大次数（如果已设置）
+
+#### 示例：每周课程安排
+
+```bash
+# 创建每周课程的循环任务
+./todo "每周一和周三下午2点到3点参加Python课程，共8周"
+
+# 创建后，你会看到：
+# - 任务下次发生：周一下午2:00
+# - 事件持续时间：1小时
+# - 发生历史：16次计划发生（每周2次 × 8周）
+
+# 参加第一节课后完成
+./todo complete 1
+
+# 任务自动更新显示周三的课程
+# 发生历史显示周一为"已完成"
+```
+
 ### 语言管理
 
 管理应用程序的语言设置：
@@ -456,6 +579,61 @@ AI 将自动：
 ```
 
 语言偏好将保存到 `~/.todo/config.json` 并在所有命令中保持有效。更多详情请参阅[国际化](#国际化-i18n)部分。
+
+### 汇总任务
+
+按时间段汇总已完成和已删除的任务：
+
+```bash
+# 按周汇总（默认）
+./todo compact
+
+# 按月汇总
+./todo compact --period month
+# 或
+./todo compact -p month
+```
+
+compact 命令会对备份文件中的已完成和已删除任务进行分组，提供按指定时间段组织的摘要视图。
+
+### 复制已完成的任务
+
+将已完成的任务复制到剪贴板，便于分享或报告：
+
+```bash
+# 复制所有已完成的任务
+./todo copy
+
+# 仅复制本周完成的任务
+./todo copy --week
+# 或
+./todo copy -w
+```
+
+任务会被格式化并复制到系统剪贴板，按周分组，方便粘贴到电子邮件、报告或文档中。
+
+### 版本与更新管理
+
+检查当前版本并管理更新：
+
+```bash
+# 显示版本信息
+./todo version
+
+# 检查更新
+./todo upgrade --check
+
+# 升级到最新版本
+./todo upgrade
+```
+
+应用程序使用基于 GitHub Releases 的无服务器自动更新机制：
+- **安全**：SHA256 校验和验证
+- **安全**：失败时自动备份和回滚
+- **多平台**：支持 Linux、macOS、Windows（amd64/arm64）
+- **零成本**：无需专用更新服务器
+
+有关自动更新机制的技术细节，请参阅 [AUTO_UPDATE.md](AUTO_UPDATE.md)。
 
 ## 跨平台构建
 
@@ -586,7 +764,12 @@ go-todo/
 │   ├── complete.go             # 完成命令
 │   ├── delete.go               # 删除命令
 │   ├── update.go               # 更新命令
-│   └── back.go                 # 备份命令
+│   ├── back.go                 # 备份命令
+│   ├── compact.go              # 汇总任务命令
+│   ├── copy.go                 # 复制任务命令
+│   ├── lang.go                 # 语言管理
+│   ├── version.go              # 版本命令
+│   └── upgrade.go              # 升级命令
 ├── app/                         # 业务逻辑
 │   ├── command.go              # 核心任务操作
 │   ├── commands.go             # 命令实现
@@ -612,9 +795,13 @@ go-todo/
 │   │   └── mock.go            # 测试模拟
 │   ├── storage/                # 存储实现
 │   │   └── memory.go          # 内存存储
-│   └── output/                 # 终端输出
-│       ├── color.go           # 彩色输出
-│       └── spinner.go         # 进度指示器
+│   ├── output/                 # 终端输出
+│   │   ├── color.go           # 彩色输出
+│   │   └── spinner.go         # 进度指示器
+│   ├── updater/                # 自动更新功能
+│   │   └── updater.go         # 更新管理器
+│   └── version/                # 版本信息
+│       └── version.go         # 版本管理
 ├── .github/workflows/           # CI/CD 流水线
 │   └── ci.yml                  # GitHub Actions
 ├── .golangci.yml               # Linter 配置
@@ -802,29 +989,57 @@ chmod +x todo
 
 ## 最近更新
 
-### 版本 1.3.0（最新）
+### 版本 1.0.0（当前版本）
 
-1. **国际化 (i18n) 支持**：
+1. **🔄 循环任务**：
+   - 基于 AI 模式检测的智能循环任务管理
+   - 支持每日、每周、每月和每年模式
+   - 特定工作日调度（例如"每周一和周三"）
+   - 事件持续时间跟踪（例如"下午2点到3点的课程"）
+   - 带完成跟踪的发生历史
+   - 灵活的重复次数限制（有限或无限）
+
+2. **🌍 国际化 (i18n)**：
    - 完整支持中文和英文
    - 自动检测系统语言或使用 `TODO_LANG` 环境变量
    - 所有用户界面文本完全翻译（命令、消息、错误等）
+   - `lang` 命令用于语言管理
 
-2. **CI/CD 流水线**：
+3. **✨ 增强的任务管理**：
+   - `compact` 命令，用于按周/月汇总已完成/已删除的任务
+   - `copy` 命令，用于将已完成的任务复制到剪贴板
+   - 改进的任务组织和报告功能
+
+4. **🔄 自动更新功能**：
+   - 使用 GitHub Releases 的内置自更新机制
+   - SHA256 校验和验证以确保安全性
+   - 失败时自动备份和回滚
+   - 多平台支持（Linux、macOS、Windows）
+   - `version` 命令显示构建信息
+   - `upgrade` 命令更新到最新版本
+
+5. **📦 安装和管理**：
+   - 增强的安装脚本，支持从 GitHub Releases 下载
+   - 卸载脚本以完整删除
+   - 更好的二进制文件管理和更新
+
+6. **🚀 CI/CD 流水线**：
    - GitHub Actions 自动化测试
    - 多平台构建（Linux、macOS、Windows）
    - 代码检查和格式化检查
    - 覆盖率报告集成
 
-3. **UX 改进**：
+7. **🎨 UX 改进**：
    - 彩色终端输出，带有状态指示器
    - AI 操作进度旋转器
    - 带有可操作建议的错误消息
    - Shell 补全支持（Bash、Zsh、Fish、PowerShell）
 
-4. **性能优化**：
+8. **⚡ 性能和质量**：
    - 全面的基准测试套件
+   - 73%+ 的测试覆盖率，包含单元和集成测试
    - 优化的构建标志
-   - 性能基线指标
+   - 带清晰错误消息的输入验证层
 
 ## 贡献
 
