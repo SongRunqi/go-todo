@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SongRunqi/go-todo/parser"
-	"github.com/SongRunqi/go-todo/internal/logger"
-	"github.com/SongRunqi/go-todo/internal/validator"
-	"github.com/SongRunqi/go-todo/internal/output"
 	"github.com/SongRunqi/go-todo/internal/i18n"
+	"github.com/SongRunqi/go-todo/internal/logger"
+	"github.com/SongRunqi/go-todo/internal/output"
+	"github.com/SongRunqi/go-todo/internal/validator"
+	"github.com/SongRunqi/go-todo/parser"
 )
 
 const cmd = `
@@ -53,14 +53,20 @@ Key behaviors:
 	<name>complete</name>
 	<desc>user wants to complete a task</desc>
 </item>
+<item>
+<name>update</name>
+<desc>user wants to update tasks, you should be careful about the update filed, if user want to update the task deadline, you should also update the endTime and the dueDate, because they are relevant
+		and please keep the same format as the format list below. 请返回一个task所有的字段，只修改用户希望修改的字段，这很重要，关系到用户体验，因此，请务必小心.
+</desc>
+</item>
 </ability>
 
 Return format (remove markdown code fence):
 {
-	"intent": "create|delete|list|complete",
+	"intent": "create|delete|list|complete|update",
 	"tasks": [
 		{
-			"taskId": -1,
+			"taskId": if the user specifies some task id and user want to update the task, and note the Id is int,
 			"user": "if not mentioned, You is default",
 			"createTime": "use current time",
 			"eventDuration": "IMPORTANT - Duration in nanoseconds for events with time ranges. Examples: '2pm-3pm' -> 3600000000000 (1 hour), '2pm-4:30pm' -> 9000000000000 (2.5 hours), '10:00-11:00' -> 3600000000000. Leave 0 or omit if no end time specified. Calculate: (end_time - start_time) in nanoseconds. 1 hour = 3600000000000ns, 1 minute = 60000000000ns",
@@ -86,9 +92,10 @@ Return format (remove markdown code fence):
 
 			Key rule: If it has a specific time range (e.g., '3pm-5pm'), it's an EVENT -> use START time (3pm).
 			If it only mentions 'by/before date', it's a TASK -> use deadline.",
-			"taskName": "CRITICAL - Use <user_preferred_language> from context: Generate the task name in the language specified in <user_preferred_language> tag. If Chinese, create Chinese task name. If English, create English task name. Extract a clear, concise title from <user_input> without adding creative interpretations.",
-			"taskDesc": "CRITICAL - Use <user_preferred_language> from context: Generate the task description in the language specified in <user_preferred_language> tag. If Chinese, write description in Chinese. If English, write description in English. Summarize <user_input> directly and factually. Keep it concise (1-2 sentences) and preserve the original meaning.",
-			"dueDate": "give a clear due date",
+			"status": "pending/completed/missed/skipped",
+			"taskName": "CRITICAL - Use <user_preferred_language> from context: Generate the task name in the language specified in <user_preferred_language> tag. If Chinese, create Chinese task name. If English, create English task name. Extract a clear, concise title from <user_input> ,不要有任何的时间信息",
+			"taskDesc": "CRITICAL - Use <user_preferred_language> from context: Generate the task description in the language specified in <user_preferred_language> tag. If Chinese, write description in Chinese. If English, write description in English. List <user_input>, make it readable, so user can know what tasks it needs todo. Keep it concise (1-2 sentences) and preserve the original meaning, only remove meaningless words",
+			"dueDate": "give a clear due date, format is: yyyy-MM-dd",
 			"urgent": "low, medium, high, urgent, select one, default is medium, calculate this by time left",
 			"isRecurring": "true or false - Detect if this is a recurring/repeating task. Keywords: 每天 (daily), 每周 (weekly), 每月 (monthly), 每年 (yearly), daily, weekly, monthly, yearly, every day, every week, 定期 (regularly), 例行 (routine)",
 			"recurringType": "Only set if isRecurring=true. Values: 'daily', 'weekly', 'monthly', 'yearly'. Examples: 每天->daily, 每周->weekly, 每月->monthly, 每年->yearly",
@@ -99,7 +106,7 @@ Return format (remove markdown code fence):
 	]
 }
 
-Note: Only include "tasks" array when intent is "create". For other intents, omit the tasks field or return empty array.
+Note: Only include "tasks" array when intent is "create/update". For other intents, omit the tasks field or return empty array. If user intent is "update", only update the specified filed, the others keep their original values.
 
 Examples:
 EVENT types (use START time + eventDuration):
@@ -224,6 +231,17 @@ func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) error {
 		if len(intentResponse.Tasks) > 0 {
 			if err := DeleteTask(todos, intentResponse.Tasks[0].TaskID, store); err != nil {
 				return fmt.Errorf("failed to delete task: %w", err)
+			}
+		}
+	case "update":
+		if len(intentResponse.Tasks) > 0 {
+
+			for _, u := range intentResponse.Tasks {
+				bytes, _ := json.Marshal(u)
+				err := UpdateTask(todos, string(bytes), store)
+				if err != nil {
+					return fmt.Errorf("failed to update task: %w", err)
+				}
 			}
 		}
 	default:
@@ -1319,10 +1337,10 @@ func CompactTasks(store *FileTodoStore, period string) error {
 
 	// Group tasks by period
 	type PeriodTasks struct {
-		Tasks      []TodoItem
-		PeriodKey  string
-		StartTime  time.Time
-		EndTime    time.Time
+		Tasks     []TodoItem
+		PeriodKey string
+		StartTime time.Time
+		EndTime   time.Time
 	}
 
 	tasksByPeriod := make(map[string]*PeriodTasks)

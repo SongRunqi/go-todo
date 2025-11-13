@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/SongRunqi/go-todo/app"
 	"github.com/SongRunqi/go-todo/internal/i18n"
 	"github.com/SongRunqi/go-todo/internal/logger"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 )
 
 var (
-	descriptionsOnce sync.Once
+	descriptionsOnce                 sync.Once
 	updateSubcommandDescriptionsFunc func()
 )
 
@@ -228,12 +228,11 @@ func init() {
 	updateSubcommandDescriptionsFunc()
 }
 
-
 // completionCmd represents the completion command
 var completionCmd = &cobra.Command{
-	Use:   "completion [bash|zsh|fish|powershell]",
-	Short: "",
-	Long:  "",
+	Use:                   "completion [bash|zsh|fish|powershell]",
+	Short:                 "",
+	Long:                  "",
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),

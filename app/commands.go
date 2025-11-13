@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/SongRunqi/go-todo/internal/logger"
 	"github.com/SongRunqi/go-todo/internal/output"
+	"github.com/rs/zerolog/log"
 )
 
 // ListCommand lists all active todos
@@ -153,12 +155,14 @@ func (c *AICommand) Execute(ctx *Context) error {
 	}
 
 	// Build context in XML format for better structure and clarity
+	bytes, _ := json.Marshal(ctx.Todos)
 	contextStr := fmt.Sprintf(`<context>
 	<current_time>%s</current_time>
 	<weekday>%s</weekday>
 	<user_preferred_language>%s</user_preferred_language>
 	<user_input>%s</user_input>
-</context>`, nowStr, weekday, userLanguage, ctx.Args[1])
+	<user_todos>%s</user_todos>
+</context>`, nowStr, weekday, userLanguage, ctx.Args[1], string(bytes))
 
 	logger.Debugf("AI context: %s", contextStr)
 
@@ -170,11 +174,13 @@ func (c *AICommand) Execute(ctx *Context) error {
 		},
 	}
 
+	log.Info().Msgf("AI request: %s", req.Messages[1].Content)
 	// Show spinner during AI request
 	spin := output.NewAISpinner()
 	spin.Start()
 
 	warpIntend, err := Chat(req)
+	log.Info().Msgf("AI response: %s", warpIntend)
 	spin.Stop()
 
 	if err != nil {
