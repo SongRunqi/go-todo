@@ -15,8 +15,9 @@ var completeCmd = &cobra.Command{
 	Use:   "complete <id>",
 	Short: "",
 	Long:  "",
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := getAppContext(cmd)
 		id, err := strconv.Atoi(args[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.invalid_task_id"), args[0])
@@ -24,7 +25,7 @@ var completeCmd = &cobra.Command{
 		}
 
 		task := &app.TodoItem{TaskID: id}
-		if err := app.Complete(todos, task, store); err != nil {
+		if err := app.Complete(ctx.Todos, task, ctx.Store); err != nil {
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.general"), err)
 			os.Exit(1)
 		}

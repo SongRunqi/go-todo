@@ -1,6 +1,27 @@
 package app
 
-import "time"
+import (
+	"github.com/SongRunqi/go-todo/internal/config"
+	"github.com/SongRunqi/go-todo/internal/domain"
+	"github.com/SongRunqi/go-todo/internal/repository"
+)
+
+// Re-export domain types for backward compatibility
+// This allows existing code to continue using app.TodoItem
+type TodoItem = domain.TodoItem
+type OccurrenceRecord = domain.OccurrenceRecord
+type TodoStore = domain.TodoStore
+
+// Re-export repository types for backward compatibility
+type FileTodoStore = repository.FileTodoStore
+
+// Re-export config types for backward compatibility
+type Config = config.Config
+
+// LoadConfig loads configuration (re-exported for backward compatibility)
+func LoadConfig() Config {
+	return config.Load()
+}
 
 // AlfredResponse the json structure "return" to Alfred
 // Alfred1
@@ -27,49 +48,6 @@ type Icon struct {
 type AlfredItemText struct {
 	Copy      string `json:"copy"`
 	Largetype string `json:"largetype"`
-}
-
-// TodoItem a item of todos
-type TodoItem struct {
-	TaskID     int       `json:"taskId"`
-	CreateTime time.Time `json:"createTime"`
-	EndTime    time.Time `json:"endTime"` // For recurring tasks: next scheduled occurrence time
-	User       string    `json:"user"`
-	TaskName   string    `json:"taskName"`
-	TaskDesc   string    `json:"taskDesc"`
-	Status     string    `json:"status"` // For recurring tasks: active, paused, completed, cancelled. For non-recurring: pending, completed
-	DueDate    string    `json:"dueDate"`
-	Urgent     string    `json:"urgent"`
-
-	// Event duration (for tasks with specific time ranges, e.g., "2pm to 3pm")
-	EventDuration time.Duration `json:"eventDuration,omitempty"` // Duration of the event (e.g., 1 hour)
-
-	// Recurring task fields
-	IsRecurring       bool   `json:"isRecurring,omitempty"`       // Whether this is a recurring task
-	RecurringType     string `json:"recurringType,omitempty"`     // daily, weekly, monthly, yearly
-	RecurringInterval int    `json:"recurringInterval,omitempty"` // Interval (e.g., every 2 days, every 3 weeks)
-	RecurringWeekdays []int  `json:"recurringWeekdays,omitempty"` // For weekly: specific weekdays (0=Sun, 1=Mon...6=Sat). Empty means all days.
-	RecurringMaxCount int    `json:"recurringMaxCount,omitempty"` // Maximum number of times to repeat (0 = infinite)
-	CompletionCount   int    `json:"completionCount,omitempty"`   // Number of periods completed
-
-	// Occurrence tracking for recurring tasks
-	OccurrenceHistory []OccurrenceRecord `json:"occurrenceHistory,omitempty"` // History of all scheduled occurrences
-
-	// Deprecated fields (kept for backward compatibility, will be migrated to OccurrenceHistory)
-	CurrentPeriodCompletions []string `json:"currentPeriodCompletions,omitempty"` // DEPRECATED: Use OccurrenceHistory instead
-}
-
-// OccurrenceRecord represents a single occurrence/instance of a recurring task
-type OccurrenceRecord struct {
-	ScheduledTime time.Time `json:"scheduledTime"`         // The scheduled time for this occurrence
-	Status        string    `json:"status"`                // pending, completed, missed, skipped
-	CompletedAt   time.Time `json:"completedAt,omitempty"` // Actual completion time (may differ from scheduled time if done late)
-	Notes         string    `json:"notes,omitempty"`       // Optional notes for this occurrence
-}
-
-type TodoStore interface {
-	Load(backup bool) ([]TodoItem, error)
-	Save(todoItems []TodoItem, backup bool) error
 }
 
 // The expect response from AI
@@ -105,9 +83,4 @@ type OpenAIRequest struct {
 type AgentCommand struct {
 	Name string `json:"name"`
 	Args []string
-}
-
-type FileTodoStore struct {
-	Path       string
-	BackupPath string
 }

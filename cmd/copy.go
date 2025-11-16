@@ -19,7 +19,8 @@ var copyCmd = &cobra.Command{
 	Short: "Copy completed tasks to clipboard",
 	Long:  "Copy completed tasks to clipboard, grouped by week",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := app.CopyCompletedTasks(todos, store, copyWeek); err != nil {
+		ctx := getAppContext(cmd)
+		if err := app.CopyCompletedTasks(ctx.Todos, ctx.Store, copyWeek); err != nil {
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.general"), err)
 			os.Exit(1)
 		}

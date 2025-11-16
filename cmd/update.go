@@ -14,11 +14,12 @@ var updateCmd = &cobra.Command{
 	Use:   "update <content>",
 	Short: "",
 	Long:  "",
-	Args: cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := getAppContext(cmd)
 		content := args[0]
 
-		if err := app.UpdateTask(todos, content, store); err != nil {
+		if err := app.UpdateTask(ctx.Todos, content, ctx.Store); err != nil {
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.general"), err)
 			os.Exit(1)
 		}

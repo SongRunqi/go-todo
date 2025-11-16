@@ -1,4 +1,4 @@
-package app
+package config
 
 import (
 	"encoding/json"
@@ -20,8 +20,8 @@ var (
 	cfg Config
 )
 
-// LoadConfig loads configuration from environment variables with fallback defaults
-func LoadConfig() Config {
+// Load loads configuration from environment variables with fallback defaults
+func Load() Config {
 	// Load from config file if it exists
 	if cfg != (Config{}) {
 		return cfg

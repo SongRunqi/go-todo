@@ -19,7 +19,8 @@ var compactCmd = &cobra.Command{
 	Short: "Compact and summarize completed/deleted tasks",
 	Long:  "Compact and summarize completed and deleted tasks from backup by week or month",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := app.CompactTasks(store, compactPeriod); err != nil {
+		ctx := getAppContext(cmd)
+		if err := app.CompactTasks(ctx.Store, compactPeriod); err != nil {
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.general"), err)
 			os.Exit(1)
 		}

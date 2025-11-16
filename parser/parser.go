@@ -6,22 +6,12 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"github.com/SongRunqi/go-todo/internal/domain"
 )
 
-// TodoItem represents a todo task
-// This is duplicated from main package to avoid circular imports
-// In a future refactor, this should be moved to a shared package
-type TodoItem struct {
-	TaskID     int       `json:"taskId"`
-	CreateTime time.Time `json:"createTime"`
-	EndTime    time.Time `json:"endTime"`
-	User       string    `json:"user"`
-	TaskName   string    `json:"taskName"`
-	TaskDesc   string    `json:"taskDesc"`
-	Status     string    `json:"status"`
-	DueDate    string    `json:"dueDate"`
-	Urgent     string    `json:"urgent"`
-}
+// TodoItem is an alias to domain.TodoItem for backward compatibility
+type TodoItem = domain.TodoItem
 
 // ParseMarkdown parses a markdown-formatted string into a TodoItem
 // Supports both list format and compact format

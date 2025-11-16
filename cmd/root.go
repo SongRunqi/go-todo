@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -17,18 +18,23 @@ var (
 	verbose bool
 )
 
-// Global context shared across commands
-var (
-	store       *app.FileTodoStore
-	todos       *[]app.TodoItem
-	config      app.Config
-	currentTime time.Time
-)
+// AppContext holds the application context shared across commands
+type AppContext struct {
+	Store       *app.FileTodoStore
+	Todos       *[]app.TodoItem
+	Config      app.Config
+	CurrentTime time.Time
+}
 
 var (
 	descriptionsOnce                 sync.Once
 	updateSubcommandDescriptionsFunc func()
 )
+
+// getAppContext retrieves the AppContext from the command context
+func getAppContext(cmd *cobra.Command) *AppContext {
+	return cmd.Context().Value("appContext").(*AppContext)
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -44,7 +50,7 @@ var rootCmd = &cobra.Command{
 		logger.Init(logLevel)
 
 		// Initialize configuration
-		config = app.LoadConfig()
+		config := app.LoadConfig()
 
 		// Initialize i18n (may have been initialized in init(), reinit with config language)
 		if config.Language != "" {
@@ -59,13 +65,12 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Initialize store
-		store = &app.FileTodoStore{
+		store := &app.FileTodoStore{
 			Path:       config.TodoPath,
 			BackupPath: config.BackupPath,
 		}
 
 		// Load todos
-		var err error
 		loadedTodos, err := store.Load(false)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.loading_todos"), err)
@@ -73,8 +78,19 @@ var rootCmd = &cobra.Command{
 		}
 		// Allocate a new slice on the heap to avoid dangling pointer
 		todosList := loadedTodos
-		todos = &todosList
-		currentTime = time.Now()
+		todos := &todosList
+		currentTime := time.Now()
+
+		// Create AppContext and attach it to the command context
+		appCtx := &AppContext{
+			Store:       store,
+			Todos:       todos,
+			Config:      config,
+			CurrentTime: currentTime,
+		}
+
+		ctx := context.WithValue(cmd.Context(), "appContext", appCtx)
+		cmd.SetContext(ctx)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
