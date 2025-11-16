@@ -208,7 +208,7 @@ func DoI(todoStr string, todos *[]TodoItem, store *FileTodoStore) error {
 			output.PrintTaskCreated(task.TaskID, task.TaskName)
 		}
 		// Save all tasks at once after creating them
-		err := store.Save(todos, false)
+		err := store.Save(*todos, false)
 		if err != nil {
 			return fmt.Errorf("failed to save todos batch: %w", err)
 		}
@@ -416,7 +416,7 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 	}
 
 	// Save updated backup
-	err = store.Save(&newBackupTodos, true)
+	err = store.Save(newBackupTodos, true)
 	if err != nil {
 		return fmt.Errorf("failed to save compacted backup: %w", err)
 	}

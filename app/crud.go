@@ -397,7 +397,7 @@ func UpdateTask(todos *[]TodoItem, todoMD string, store *FileTodoStore) error {
 			(*todos)[i] = updatedTask
 
 			// Save to file
-			err := store.Save(todos, false)
+			err := store.Save(*todos, false)
 			if err != nil {
 				return fmt.Errorf("failed to save task: %w", err)
 			}
@@ -453,7 +453,7 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 	backupTodos = append(backupTodos, *deletedTask)
 
 	// Save deleted task to backup file
-	err = store.Save(&backupTodos, true)
+	err = store.Save(backupTodos, true)
 	if err != nil {
 		return fmt.Errorf("failed to save to backup: %w", err)
 	}
@@ -468,7 +468,7 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 	*todos = newTodos
 
 	// Save updated todos
-	err = store.Save(todos, false)
+	err = store.Save(*todos, false)
 	if err != nil {
 		return fmt.Errorf("failed to save after deletion: %w", err)
 	}

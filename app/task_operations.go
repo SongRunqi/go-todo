@@ -40,7 +40,7 @@ func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int, store *File
 	*todos = append(*todos, restoredTask)
 
 	// Save updated active todos
-	err := store.Save(todos, false)
+	err := store.Save(*todos, false)
 	if err != nil {
 		return fmt.Errorf("failed to save active todos: %w", err)
 	}
@@ -55,7 +55,7 @@ func RestoreTask(todos *[]TodoItem, backupTodos *[]TodoItem, id int, store *File
 	*backupTodos = newBackupTodos
 
 	// Save updated backup
-	err = store.Save(backupTodos, true)
+	err = store.Save(*backupTodos, true)
 	if err != nil {
 		return fmt.Errorf("failed to update backup: %w", err)
 	}

@@ -49,7 +49,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 						// Check if max count is reached
 						if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
 							task.Status = "completed"
-							err := store.Save(todos, false)
+							err := store.Save(*todos, false)
 							if err != nil {
 								return fmt.Errorf("failed to save updated todos: %w", err)
 							}
@@ -69,7 +69,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 							task.DueDate = nextPeriodOccurrences[0].ScheduledTime.Format("2006-01-02")
 						}
 
-						err := store.Save(todos, false)
+						err := store.Save(*todos, false)
 						if err != nil {
 							return fmt.Errorf("failed to save updated todos: %w", err)
 						}
@@ -106,7 +106,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 							}
 						}
 
-						err := store.Save(todos, false)
+						err := store.Save(*todos, false)
 						if err != nil {
 							return fmt.Errorf("failed to save updated todos: %w", err)
 						}
@@ -125,7 +125,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 				// Check if max count is reached
 				if task.RecurringMaxCount > 0 && task.CompletionCount >= task.RecurringMaxCount {
 					task.Status = "completed"
-					err := store.Save(todos, false)
+					err := store.Save(*todos, false)
 					if err != nil {
 						return fmt.Errorf("failed to save updated todos: %w", err)
 					}
@@ -144,7 +144,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 					task.DueDate = nextOccurrences[0].ScheduledTime.Format("2006-01-02")
 				}
 
-				err := store.Save(todos, false)
+				err := store.Save(*todos, false)
 				if err != nil {
 					return fmt.Errorf("failed to save updated todos: %w", err)
 				}
@@ -169,7 +169,7 @@ func Complete(todos *[]TodoItem, todo *TodoItem, store *FileTodoStore) error {
 			// Non-recurring task: mark as completed
 			task.Status = "completed"
 
-			err := store.Save(todos, false)
+			err := store.Save(*todos, false)
 			if err != nil {
 				return fmt.Errorf("failed to save updated todos: %w", err)
 			}

@@ -16,7 +16,8 @@ var listCmd = &cobra.Command{
 	Short:   "",
 	Long:    "",
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := app.List(todos); err != nil {
+		ctx := getAppContext(cmd)
+		if err := app.List(ctx.Todos); err != nil {
 			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.general"), err)
 			os.Exit(1)
 		}
