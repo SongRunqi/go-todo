@@ -14,7 +14,7 @@ import (
 	"github.com/SongRunqi/go-todo/parser"
 )
 
-const cmd = `
+const Cmd = `
 <System>
 You are a todo helper agent. Your task is to analyze user input and determine their intent along with any tasks they want to create.
 

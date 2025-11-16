@@ -61,10 +61,10 @@ type TodoItem struct {
 
 // OccurrenceRecord represents a single occurrence/instance of a recurring task
 type OccurrenceRecord struct {
-	ScheduledTime time.Time `json:"scheduledTime"` // The scheduled time for this occurrence
-	Status        string    `json:"status"`        // pending, completed, missed, skipped
+	ScheduledTime time.Time `json:"scheduledTime"`         // The scheduled time for this occurrence
+	Status        string    `json:"status"`                // pending, completed, missed, skipped
 	CompletedAt   time.Time `json:"completedAt,omitempty"` // Actual completion time (may differ from scheduled time if done late)
-	Notes         string    `json:"notes,omitempty"` // Optional notes for this occurrence
+	Notes         string    `json:"notes,omitempty"`       // Optional notes for this occurrence
 }
 
 type TodoStore interface {
@@ -100,4 +100,14 @@ type Msg struct {
 type OpenAIRequest struct {
 	Model    string `json:"model"`
 	Messages []Msg  `json:"messages"`
+}
+
+type AgentCommand struct {
+	Name string `json:"name"`
+	Args []string
+}
+
+type FileTodoStore struct {
+	Path       string
+	BackupPath string
 }

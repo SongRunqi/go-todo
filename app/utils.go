@@ -21,7 +21,7 @@ func TransToAlfredItem(todos *[]TodoItem) *[]AlfredItem {
 
 			// For weekday-specific recurring tasks, show period progress
 			if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 {
-				periodProgress := strconv.Itoa(len(task.CurrentPeriodCompletions)) + "/" + strconv.Itoa(len(task.RecurringWeekdays))
+				periodProgress := strconv.Itoa(len(task.OccurrenceHistory)) + "/" + strconv.Itoa(len(task.RecurringWeekdays))
 
 				// Show period count
 				if task.RecurringMaxCount > 0 {

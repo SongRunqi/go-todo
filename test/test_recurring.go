@@ -20,13 +20,13 @@ func main() {
 		User:              "TestUser",
 		CreateTime:        time.Now(),
 		EndTime:           getNextWeekday(time.Now(), 3, 14, 0), // Next Wednesday at 14:00
-		EventDuration:     1 * time.Hour, // 1 hour duration (2pm-3pm)
+		EventDuration:     1 * time.Hour,                        // 1 hour duration (2pm-3pm)
 		Urgent:            "medium",
 		IsRecurring:       true,
 		RecurringType:     "weekly",
 		RecurringInterval: 1,
 		RecurringWeekdays: []int{3, 5}, // Wednesday=3, Friday=5
-		RecurringMaxCount: 4,            // 4 weeks
+		RecurringMaxCount: 4,           // 4 weeks
 	}
 
 	todos := []app.TodoItem{}

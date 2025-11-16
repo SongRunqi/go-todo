@@ -16,8 +16,16 @@ type Config struct {
 	Language   string
 }
 
+var (
+	cfg Config
+)
+
 // LoadConfig loads configuration from environment variables with fallback defaults
 func LoadConfig() Config {
+	// Load from config file if it exists
+	if cfg != (Config{}) {
+		return cfg
+	}
 	// Get user home directory as a fallback base path
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -51,8 +59,7 @@ func LoadConfig() Config {
 	if fileConfig := loadConfigFile(homeDir); fileConfig != nil {
 		language = fileConfig.Language
 	}
-
-	return Config{
+	cfg = Config{
 		TodoPath:   todoPath,
 		BackupPath: backupPath,
 		APIKey:     apiKey,
@@ -60,6 +67,7 @@ func LoadConfig() Config {
 		LLMBaseURL: llmBaseURL,
 		Language:   language,
 	}
+	return cfg
 }
 
 // loadConfigFile loads configuration from the config.json file

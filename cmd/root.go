@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -33,7 +32,7 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "todo [natural language input]",
+	Use:   "todo command",
 	Short: "",
 	Long:  "",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -78,12 +77,7 @@ var rootCmd = &cobra.Command{
 		currentTime = time.Now()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		// If no subcommand is provided and args exist, treat as natural language
-		if len(args) > 0 {
-			handleNaturalLanguage(args)
-		} else {
-			cmd.Help()
-		}
+		cmd.Help()
 	},
 }
 
@@ -94,52 +88,6 @@ func Execute() {
 	rootCmd.SilenceUsage = true
 
 	if err := rootCmd.Execute(); err != nil {
-		// Check if this is an "unknown command" error
-		// If so, treat the entire input as natural language
-		errStr := err.Error()
-		if len(os.Args) > 1 && strings.Contains(errStr, "unknown command") {
-			// Initialize the same way PersistentPreRun does
-			logLevel := os.Getenv("LOG_LEVEL")
-			if logLevel == "" {
-				logLevel = "info"
-			}
-			logger.Init(logLevel)
-
-			config = app.LoadConfig()
-
-			// Initialize i18n (may have been initialized in init(), reinit with config language)
-			if config.Language != "" {
-				if err := i18n.SetLanguage(config.Language); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: failed to set language: %v\n", err)
-				}
-			}
-
-			// Update subcommand descriptions (once) after all commands are registered
-			if updateSubcommandDescriptionsFunc != nil {
-				descriptionsOnce.Do(updateSubcommandDescriptionsFunc)
-			}
-
-			store = &app.FileTodoStore{
-				Path:       config.TodoPath,
-				BackupPath: config.BackupPath,
-			}
-
-			loadedTodos, loadErr := store.Load(false)
-			if loadErr != nil {
-				fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.loading_todos"), loadErr)
-				os.Exit(1)
-			}
-			// Allocate a new slice on the heap to avoid dangling pointer
-			todosList := loadedTodos
-			todos = &todosList
-			currentTime = time.Now()
-
-			// Treat the first argument as natural language input
-			handleNaturalLanguage(os.Args[1:])
-			return
-		}
-
-		// For other errors, print them normally
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -248,24 +196,4 @@ var completionCmd = &cobra.Command{
 			cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
 		}
 	},
-}
-
-// handleNaturalLanguage processes natural language input using AI
-func handleNaturalLanguage(args []string) {
-	userInput := args[0]
-
-	ctx := &app.Context{
-		Store:       store,
-		Todos:       todos,
-		Args:        append([]string{"todo"}, userInput),
-		CurrentTime: currentTime,
-		Config:      &config,
-	}
-
-	// Use AICommand to process natural language
-	aiCmd := &app.AICommand{}
-	if err := aiCmd.Execute(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
 }

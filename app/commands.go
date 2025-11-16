@@ -169,7 +169,7 @@ func (c *AICommand) Execute(ctx *Context) error {
 	req := OpenAIRequest{
 		Model: ctx.Config.Model,
 		Messages: []Msg{
-			{Role: "system", Content: cmd},
+			{Role: "system", Content: Cmd},
 			{Role: "user", Content: contextStr},
 		},
 	}

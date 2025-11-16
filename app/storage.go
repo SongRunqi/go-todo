@@ -8,11 +8,6 @@ import (
 	"github.com/SongRunqi/go-todo/internal/logger"
 )
 
-type FileTodoStore struct {
-	Path       string
-	BackupPath string
-}
-
 func (f *FileTodoStore) Load(backup bool) ([]TodoItem, error) {
 	filePath := f.Path
 	if backup {

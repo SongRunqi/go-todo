@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/SongRunqi/go-todo/app"
 	"github.com/SongRunqi/go-todo/internal/i18n"
+	"github.com/spf13/cobra"
 )
 
 // listCmd represents the list command

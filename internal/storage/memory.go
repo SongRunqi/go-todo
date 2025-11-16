@@ -3,22 +3,11 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/SongRunqi/go-todo/app"
 	"sync"
-	"time"
 )
 
-// TodoItem represents a todo item (matching the main TodoItem structure)
-type TodoItem struct {
-	TaskID     int       `json:"taskId"`
-	CreateTime time.Time `json:"createTime"`
-	EndTime    time.Time `json:"endTime"`
-	User       string    `json:"user"`
-	TaskName   string    `json:"taskName"`
-	TaskDesc   string    `json:"taskDesc"`
-	Status     string    `json:"status"`
-	DueDate    string    `json:"dueDate"`
-	Urgent     string    `json:"urgent"`
-}
+type TodoItem = app.TodoItem
 
 // MemoryTodoStore implements in-memory storage for testing
 type MemoryTodoStore struct {
