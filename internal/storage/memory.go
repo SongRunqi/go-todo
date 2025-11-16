@@ -3,11 +3,12 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/SongRunqi/go-todo/app"
 	"sync"
+
+	"github.com/SongRunqi/go-todo/internal/domain"
 )
 
-type TodoItem = app.TodoItem
+type TodoItem = domain.TodoItem
 
 // MemoryTodoStore implements in-memory storage for testing
 type MemoryTodoStore struct {
