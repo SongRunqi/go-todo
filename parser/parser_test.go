@@ -176,28 +176,46 @@ Description here.`
 }
 
 func TestParseMarkdown_CompactFormat(t *testing.T) {
-	// This is a compact format where all fields are on one line
-	markdown := `Task ID: 5 Status: pending User: charlie Due Date: 2025-11-08 Urgency: high`
+	// This is a compact format: taskName: taskDesc
+	markdown := `Buy groceries: Need to buy milk, bread, and eggs from the store`
+
+	task, err := ParseMarkdown(markdown)
+	// Note: This format doesn't include Task ID, so it will fail validation
+	// This test verifies that the compact format is correctly parsed into TaskName and TaskDesc
+	if err == nil {
+		t.Error("Expected error for missing Task ID")
+	}
+
+	// Even though it fails validation, we can check if TaskName and TaskDesc were parsed
+	if task.TaskName != "Buy groceries" {
+		t.Errorf("Expected TaskName 'Buy groceries', got '%s'", task.TaskName)
+	}
+	if task.TaskDesc != "Need to buy milk, bread, and eggs from the store" {
+		t.Errorf("Expected TaskDesc 'Need to buy milk, bread, and eggs from the store', got '%s'", task.TaskDesc)
+	}
+}
+
+func TestParseMarkdown_CompactFormatWithTaskID(t *testing.T) {
+	// Compact format combined with Task ID in markdown
+	markdown := `# Task ID: 5
+
+Review code: Check the pull request and provide feedback
+
+Task ID: 5`
 
 	task, err := ParseMarkdown(markdown)
 	if err != nil {
-		t.Fatalf("ParseMarkdown compact format failed: %v", err)
+		t.Fatalf("ParseMarkdown compact format with ID failed: %v", err)
 	}
 
 	if task.TaskID != 5 {
 		t.Errorf("Expected TaskID 5, got %d", task.TaskID)
 	}
-	if task.Status != "pending" {
-		t.Errorf("Expected Status 'pending', got '%s'", task.Status)
+	if task.TaskName != "Review code" {
+		t.Errorf("Expected TaskName 'Review code', got '%s'", task.TaskName)
 	}
-	if task.User != "charlie" {
-		t.Errorf("Expected User 'charlie', got '%s'", task.User)
-	}
-	if task.DueDate != "2025-11-08" {
-		t.Errorf("Expected DueDate '2025-11-08', got '%s'", task.DueDate)
-	}
-	if task.Urgent != "high" {
-		t.Errorf("Expected Urgent 'high', got '%s'", task.Urgent)
+	if task.TaskDesc != "Check the pull request and provide feedback" {
+		t.Errorf("Expected TaskDesc 'Check the pull request and provide feedback', got '%s'", task.TaskDesc)
 	}
 }
 
