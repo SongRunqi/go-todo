@@ -126,42 +126,42 @@ func Parse(content string) (TodoItem, error) {
 // Helper functions for parsing specific fields
 
 func isCompactFormat(line string) bool {
-	return strings.Contains(line, "Task ID:") &&
-		strings.Contains(line, "Status:") &&
-		strings.Contains(line, "User:") &&
-		strings.Contains(line, "Due Date:") &&
-		strings.Contains(line, "Urgency:")
+	// Check for simple "taskName: taskDesc" format
+	// Must have exactly one colon and no markdown indicators
+	if !strings.Contains(line, ":") {
+		return false
+	}
+	// Should not contain markdown list or heading indicators
+	if strings.HasPrefix(strings.TrimSpace(line), "-") ||
+	   strings.HasPrefix(strings.TrimSpace(line), "#") ||
+	   strings.HasPrefix(strings.TrimSpace(line), "*") {
+		return false
+	}
+	// Should not contain other field markers
+	if strings.Contains(line, "Task ID:") ||
+	   strings.Contains(line, "Status:") ||
+	   strings.Contains(line, "User:") {
+		return false
+	}
+	// Should have content before and after the colon
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) == 2 {
+		taskName := strings.TrimSpace(parts[0])
+		taskDesc := strings.TrimSpace(parts[1])
+		return taskName != "" && taskDesc != ""
+	}
+	return false
 }
 
 func parseCompactFormat(line string, task *TodoItem) {
-	fields := strings.Fields(line)
-	log.Println("[parser] Compact format fields:", fields)
-
-	for i := 0; i < len(fields); i++ {
-		field := fields[i]
-
-		if field == "Task" && i+2 < len(fields) && fields[i+1] == "ID:" {
-			idStr := strings.Trim(fields[i+2], "*")
-			fmt.Sscanf(idStr, "%d", &task.TaskID)
-			i += 2
-		} else if field == "Status:" && i+1 < len(fields) {
-			task.Status = strings.Trim(fields[i+1], "*")
-			i++
-		} else if field == "User:" && i+1 < len(fields) {
-			task.User = strings.Trim(fields[i+1], "*")
-			i++
-		} else if field == "Due" && i+2 < len(fields) && fields[i+1] == "Date:" {
-			task.DueDate = strings.Trim(fields[i+2], "*")
-			i += 2
-		} else if field == "Urgency:" && i+1 < len(fields) {
-			task.Urgent = strings.Trim(fields[i+1], "*")
-			i++
-		}
+	// Parse simple "taskName: taskDesc" format
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) == 2 {
+		task.TaskName = strings.TrimSpace(parts[0])
+		task.TaskDesc = strings.TrimSpace(parts[1])
+		log.Println("[parser] Compact format parsed - TaskName:", task.TaskName,
+			"TaskDesc:", task.TaskDesc)
 	}
-
-	log.Println("[parser] Compact format parsed - TaskID:", task.TaskID,
-		"Status:", task.Status, "User:", task.User,
-		"DueDate:", task.DueDate, "Urgent:", task.Urgent)
 }
 
 func parseTitle(line string, task *TodoItem) bool {
