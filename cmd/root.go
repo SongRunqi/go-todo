@@ -21,6 +21,7 @@ var (
 // AppContext holds the application context shared across commands
 type AppContext struct {
 	Store       *app.FileTodoStore
+	TagStore    *app.FileTagStore
 	Todos       *[]app.TodoItem
 	Config      app.Config
 	CurrentTime time.Time
@@ -70,6 +71,11 @@ var rootCmd = &cobra.Command{
 			BackupPath: config.BackupPath,
 		}
 
+		// Initialize tag store
+		tagStore := &app.FileTagStore{
+			Path: config.TagPath,
+		}
+
 		// Load todos
 		loadedTodos, err := store.Load(false)
 		if err != nil {
@@ -84,6 +90,7 @@ var rootCmd = &cobra.Command{
 		// Create AppContext and attach it to the command context
 		appCtx := &AppContext{
 			Store:       store,
+			TagStore:    tagStore,
 			Todos:       todos,
 			Config:      config,
 			CurrentTime: currentTime,

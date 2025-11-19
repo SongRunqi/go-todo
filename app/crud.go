@@ -280,14 +280,20 @@ func GetTask(todos *[]TodoItem, id int) error {
 				}
 			}
 
-			md := fmt.Sprintf(`# %s
+			// Build tags info if available
+		tagsInfo := ""
+		if len(task.Tags) > 0 {
+			tagsInfo = "\n- **Tags:** " + strings.Join(task.Tags, ", ")
+		}
+
+		md := fmt.Sprintf(`# %s
 
 - **%s:** %d
 - **%s:** %s
 - **%s:** %s
 - **%s:** %s
 - **%s:** %s
-- **%s:** %s%s%s%s
+- **%s:** %s%s%s%s%s
 
 ## %s
 
@@ -303,6 +309,7 @@ func GetTask(todos *[]TodoItem, id int) error {
 				i18n.T("field.user"), task.User,
 				i18n.T("field.due_date"), task.DueDate,
 				i18n.T("field.urgency"), task.Urgent,
+				tagsInfo,
 				func() string {
 					if createdTime != "" {
 						return "\n- **" + i18n.T("field.created") + ":** " + createdTime

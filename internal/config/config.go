@@ -10,6 +10,7 @@ import (
 type Config struct {
 	TodoPath   string
 	BackupPath string
+	TagPath    string
 	APIKey     string
 	Model      string
 	LLMBaseURL string
@@ -35,10 +36,12 @@ func Load() Config {
 	// Default paths in user's home directory
 	defaultTodoPath := filepath.Join(homeDir, ".todo", "todo.json")
 	defaultBackupPath := filepath.Join(homeDir, ".todo", "todo_back.json")
+	defaultTagPath := filepath.Join(homeDir, ".todo", "tags.json")
 
 	// Load from environment variables or use defaults
 	todoPath := getEnvOrDefault("TODO_PATH", defaultTodoPath)
 	backupPath := getEnvOrDefault("TODO_BACKUP_PATH", defaultBackupPath)
+	tagPath := getEnvOrDefault("TAG_PATH", defaultTagPath)
 
 	// Ensure the directory exists
 	todoDir := filepath.Dir(todoPath)
@@ -62,6 +65,7 @@ func Load() Config {
 	cfg = Config{
 		TodoPath:   todoPath,
 		BackupPath: backupPath,
+		TagPath:    tagPath,
 		APIKey:     apiKey,
 		Model:      model,
 		LLMBaseURL: llmBaseURL,

@@ -13,6 +13,7 @@ type TodoItem struct {
 	Status     string    `json:"status"` // For recurring tasks: active, paused, completed, cancelled. For non-recurring: pending, completed
 	DueDate    string    `json:"dueDate"`
 	Urgent     string    `json:"urgent"`
+	Tags       []string  `json:"tags,omitempty"` // Tags associated with this task
 
 	// Event duration (for tasks with specific time ranges, e.g., "2pm to 3pm")
 	EventDuration time.Duration `json:"eventDuration,omitempty"` // Duration of the event (e.g., 1 hour)
