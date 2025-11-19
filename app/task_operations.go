@@ -71,9 +71,7 @@ func CopyCompletedTasks(todos *[]TodoItem, store *FileTodoStore, weekOnly bool) 
 
 	// Get completed tasks from main list
 	for _, task := range *todos {
-		if task.Status == "completed" {
-			completedTasks = append(completedTasks, task)
-		}
+		completedTasks = append(completedTasks, task)
 	}
 
 	// Get completed tasks from backup

@@ -1,8 +1,10 @@
-package app
+package main
 
 import (
 	"testing"
 	"time"
+
+	"github.com/SongRunqi/go-todo/app"
 )
 
 func TestSortedListWithSameEndTime(t *testing.T) {
@@ -10,7 +12,7 @@ func TestSortedListWithSameEndTime(t *testing.T) {
 	now := time.Now()
 	endTime := now.Add(3 * 24 * time.Hour) // 3 days from now
 
-	todos := []TodoItem{
+	todos := []app.TodoItem{
 		{
 			TaskID:     1,
 			TaskName:   "Task 1",
@@ -38,7 +40,7 @@ func TestSortedListWithSameEndTime(t *testing.T) {
 	}
 
 	// Call sortedList
-	result := sortedList(&todos)
+	result := app.sortedList(&todos)
 
 	// Verify all tasks are in the result
 	if len(result) != 3 {
@@ -62,7 +64,7 @@ func TestSortedListWithDifferentEndTimes(t *testing.T) {
 	// Create test todos with different end times
 	now := time.Now()
 
-	todos := []TodoItem{
+	todos := []app.TodoItem{
 		{
 			TaskID:     1,
 			TaskName:   "Task 1",
@@ -90,7 +92,7 @@ func TestSortedListWithDifferentEndTimes(t *testing.T) {
 	}
 
 	// Call sortedList
-	result := sortedList(&todos)
+	result := app.sortedList(&todos)
 
 	// Verify all tasks are in the result
 	if len(result) != 3 {
