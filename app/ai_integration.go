@@ -333,8 +333,8 @@ func CompactTasks(store *FileTodoStore, period string) error {
 		taskList := ""
 		completedCount := 0
 		deletedCount := 0
-		for _, task := range tasks {
-			taskList += fmt.Sprintf("- %s (status: %s)\n", task.TaskName, task.Status)
+		for i, task := range tasks {
+			taskList += fmt.Sprintf("%d. %s: %s (status: %s)\n", i+1, task.TaskName, task.TaskDesc, task.Status)
 			if task.Status == "completed" {
 				completedCount++
 			} else if task.Status == "deleted" {
@@ -397,6 +397,13 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 
 		fmt.Printf("   ✅ Generated task name: %s\n\n", taskName)
 
+		// Build compact format task description with numbered list and summary
+		taskDesc := ""
+		for i, task := range tasks {
+			taskDesc += fmt.Sprintf("%d. %s: %s\n", i+1, task.TaskName, task.TaskDesc)
+		}
+		taskDesc += fmt.Sprintf("\nSummary: %s", summary)
+
 		// Create summary task with unique ID
 		summaryTask := TodoItem{
 			TaskID:     GetLastId(&newBackupTodos),
@@ -404,7 +411,7 @@ Summary: [your summary here]`, periodKey, periodKey, len(tasks), completedCount,
 			EndTime:    periodData.EndTime,
 			User:       "System",
 			TaskName:   taskName,
-			TaskDesc:   summary,
+			TaskDesc:   taskDesc,
 			Status:     "completed",
 			DueDate:    periodKey,
 			Urgent:     "low",
