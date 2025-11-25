@@ -84,3 +84,8 @@ type AgentCommand struct {
 	Name string `json:"name"`
 	Args []string
 }
+
+type AgentContext struct {
+	Commands           []AgentCommand `json:"commands"`
+	InteractionHistory []Msg          `json:"interaction_history"`
+}

@@ -92,7 +92,7 @@ func CopyCompletedTasks(todos *[]TodoItem, store *FileTodoStore, weekOnly bool) 
 	}
 
 	// Group tasks by week
-	tasksByWeek := make(map[string][]string)
+	tasksByWeek := make(map[string][]TodoItem)
 	now := time.Now()
 
 	for _, task := range completedTasks {
@@ -109,9 +109,9 @@ func CopyCompletedTasks(todos *[]TodoItem, store *FileTodoStore, weekOnly bool) 
 		}
 
 		if _, exists := tasksByWeek[weekKey]; !exists {
-			tasksByWeek[weekKey] = make([]string, 0)
+			tasksByWeek[weekKey] = make([]TodoItem, 0)
 		}
-		tasksByWeek[weekKey] = append(tasksByWeek[weekKey], task.TaskName)
+		tasksByWeek[weekKey] = append(tasksByWeek[weekKey], task)
 	}
 
 	if len(tasksByWeek) == 0 {
@@ -129,9 +129,23 @@ func CopyCompletedTasks(todos *[]TodoItem, store *FileTodoStore, weekOnly bool) 
 	// Format output
 	output := ""
 	for _, week := range weeks {
-		output += fmt.Sprintf("=== %s ===\n", week)
-		for i, taskName := range tasksByWeek[week] {
-			output += fmt.Sprintf("%d. %s\n", i+1, taskName)
+		t := tasksByWeek[week][0].EndTime
+		d := t.Weekday()
+		rw := 0
+		for i := 1; i < 8; i++ {
+			if i%7 == int(d) {
+				rw = i
+			}
+		}
+
+		x := rw - 1
+		y := 7 - rw
+		monday := t.AddDate(0, 0, -x)
+		sunday := t.AddDate(0, 0, y)
+
+		output += fmt.Sprintf("=== %s ===\n", monday.Format("2006-01-02")+" ~ "+sunday.Format("2006-01-02"))
+		for i, task := range tasksByWeek[week] {
+			output += fmt.Sprintf("%d. %s\n", i+1, task.TaskName)
 		}
 		output += "\n"
 	}
