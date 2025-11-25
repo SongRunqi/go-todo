@@ -2,35 +2,45 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 
-	"github.com/spf13/cobra"
 	"github.com/SongRunqi/go-todo/app"
-	"github.com/SongRunqi/go-todo/internal/i18n"
+	_ "github.com/SongRunqi/go-todo/internal/i18n"
+	"github.com/spf13/cobra"
 )
 
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
-	Use:   "delete <id>",
+	Use:   "delete --id <id> [--source backup]",
 	Short: "",
 	Long:  "",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Example: `todo delete --id 3
+todo delete --id 3 --source backup`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := getAppContext(cmd)
-		id, err := strconv.Atoi(args[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.invalid_task_id"), args[0])
-			os.Exit(1)
-		}
-
-		if err := app.DeleteTask(ctx.Todos, id, ctx.Store); err != nil {
-			fmt.Fprintf(os.Stderr, i18n.T("cmd.root.error.general"), err)
-			os.Exit(1)
-		}
+		return runDelete(ctx, deleteID, deleteSource)
 	},
 }
 
+var (
+	deleteID     int
+	deleteSource string
+)
+
 func init() {
 	rootCmd.AddCommand(deleteCmd)
+	deleteCmd.Flags().IntVarP(&deleteID, "id", "i", 0, "Task ID to delete")
+	deleteCmd.Flags().StringVarP(&deleteSource, "source", "s", "active", "Source to delete from: active|backup")
+	_ = deleteCmd.MarkFlagRequired("id")
+}
+
+func runDelete(ctx *AppContext, id int, source string) error {
+	switch source {
+	case "active":
+		return app.DeleteTask(ctx.Todos, id, ctx.Store)
+	case "backup":
+		return app.DeleteBackupTask(id, ctx.Store)
+	default:
+		return fmt.Errorf("invalid source %q (use active|backup)", source)
+	}
 }

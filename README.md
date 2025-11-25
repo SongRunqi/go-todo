@@ -306,7 +306,7 @@ todo [command] [arguments] [flags]
 - `list` / `ls` - List all active todos
 - `get <id>` - Get detailed information about a task
 - `complete <id>` - Mark a task as completed
-- `delete <id>` - Delete a task permanently
+- `delete --id <id> [--source backup]` - Delete a task (defaults to active list; `--source backup` removes from backup)
 - `update <content>` - Update a task with Markdown or JSON
 - `back` - List completed tasks
 - `back get <id>` - View a completed task
@@ -468,7 +468,9 @@ Updated task description..."
 Remove a task permanently:
 
 ```bash
-./todo "delete 1"
+./todo delete --id 1
+# To remove from backup instead:
+# ./todo delete --id 1 --source backup
 ```
 
 ### Recurring Tasks

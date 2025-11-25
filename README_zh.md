@@ -306,7 +306,7 @@ todo [命令] [参数] [标志]
 - `list` / `ls` - 列出所有活动任务
 - `get <id>` - 获取任务详细信息
 - `complete <id>` - 标记任务为已完成
-- `delete <id>` - 永久删除任务
+- `delete --id <id> [--source backup]` - 删除任务（默认删除活跃列表，使用 `--source backup` 作用于备份列表）
 - `update <内容>` - 使用 Markdown 或 JSON 更新任务
 - `back` - 列出已完成的任务
 - `back get <id>` - 查看已完成的任务
@@ -468,7 +468,9 @@ AI 将自动：
 永久删除任务：
 
 ```bash
-./todo delete 1
+./todo delete --id 1
+# 若要从备份列表中删除：
+# ./todo delete --id 1 --source backup
 ```
 
 ### 循环任务

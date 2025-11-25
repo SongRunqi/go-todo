@@ -444,7 +444,7 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 	deletedTask.Status = "deleted"
 
 	// Load existing backup todos
-	backupTodos, err := store.Load(true)
+	backupTodos, err := store.Load(false)
 	if err != nil {
 		return fmt.Errorf("failed to load backup: %w", err)
 	}
@@ -474,6 +474,41 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 	}
 
 	logger.Debug("Task moved to backup with 'deleted' status")
+	output.PrintTaskDeleted(id)
+	return nil
+}
+
+// DeleteBackupTask permanently removes a task from the backup list.
+func DeleteBackupTask(id int, store *FileTodoStore) error {
+	if err := validator.ValidateTaskID(id); err != nil {
+		return err
+	}
+
+	backupTodos, err := store.Load(true)
+	if err != nil {
+		return fmt.Errorf("failed to load backup: %w", err)
+	}
+
+	index := -1
+	for i := range backupTodos {
+		if backupTodos[i].TaskID == id {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		return fmt.Errorf("task with ID %d not found in backup", id)
+	}
+
+	taskName := backupTodos[index].TaskName
+	backupTodos = append(backupTodos[:index], backupTodos[index+1:]...)
+
+	if err := store.Save(backupTodos, true); err != nil {
+		return fmt.Errorf("failed to save backup after deletion: %w", err)
+	}
+
+	logger.Debugf("Deleted backup task ID %d: %s", id, taskName)
 	output.PrintTaskDeleted(id)
 	return nil
 }
