@@ -444,7 +444,7 @@ func DeleteTask(todos *[]TodoItem, id int, store *FileTodoStore) error {
 	deletedTask.Status = "deleted"
 
 	// Load existing backup todos
-	backupTodos, err := store.Load(false)
+	backupTodos, err := store.Load(true)
 	if err != nil {
 		return fmt.Errorf("failed to load backup: %w", err)
 	}
