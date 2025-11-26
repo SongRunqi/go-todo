@@ -260,8 +260,8 @@ func GetTask(todos *[]TodoItem, id int) error {
 					}
 				} else {
 					// Legacy format - show old progress tracking
-					if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 && len(task.CurrentPeriodCompletions) > 0 {
-						periodProgress := fmt.Sprintf("%d/%d", len(task.CurrentPeriodCompletions), len(task.RecurringWeekdays))
+					if task.RecurringType == "weekly" && len(task.RecurringWeekdays) > 0 && len(task.OccurrenceHistory) > 0 {
+						periodProgress := fmt.Sprintf("%d/%d", len(task.OccurrenceHistory), len(task.RecurringWeekdays))
 						recurringInfo += fmt.Sprintf("- **Current Week Progress:** %s days completed\n", periodProgress)
 						recurringInfo += "- **Completed This Week:** " + strings.Join(task.CurrentPeriodCompletions, ", ") + "\n"
 					}
