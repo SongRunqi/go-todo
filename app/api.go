@@ -17,10 +17,17 @@ var (
 // GetAIClient returns the AI client, initializing it if necessary
 func GetAIClient() ai.Client {
 	if aiClient == nil {
+		provider := os.Getenv("AI_PROVIDER")
 		baseURL := os.Getenv("LLM_BASE_URL")
 		apiKey := os.Getenv("API_KEY")
 		model := os.Getenv("LLM_MODEL")
-		aiClient = ai.NewDeepSeekClient(baseURL, apiKey, model)
+
+		var err error
+		aiClient, err = ai.NewClient(provider, baseURL, apiKey, model)
+		if err != nil {
+			logger.Warnf("Failed to create AI client: %v, falling back to DeepSeek", err)
+			aiClient = ai.NewDeepSeekClient(baseURL, apiKey, model)
+		}
 	}
 	return aiClient
 }

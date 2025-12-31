@@ -1,3 +1,7 @@
 .idea/
 todo
 go-todo
+todo-*
+.DS_Store
+logs/
+.env

@@ -8,12 +8,13 @@ import (
 
 // Config holds application configuration
 type Config struct {
-	TodoPath   string
-	BackupPath string
-	APIKey     string
-	Model      string
-	LLMBaseURL string
-	Language   string
+	TodoPath    string
+	BackupPath  string
+	APIKey      string
+	Model       string
+	LLMBaseURL  string
+	Language    string
+	AIProvider  string // AI provider: deepseek, openai, anthropic
 }
 
 var (
@@ -49,9 +50,10 @@ func Load() Config {
 	}
 
 	// Load AI/LLM configuration
+	aiProvider := getEnvOrDefault("AI_PROVIDER", "deepseek")
 	apiKey := os.Getenv("API_KEY")
-	model := getEnvOrDefault("model", "deepseek-chat")
-	llmBaseURL := getEnvOrDefault("LLM_BASE_URL", "https://api.deepseek.com/chat/completions")
+	model := getEnvOrDefault("LLM_MODEL", "") // Empty means use provider default
+	llmBaseURL := getEnvOrDefault("LLM_BASE_URL", "") // Empty means use provider default
 
 	// Load language configuration
 	// Priority: 1. Config file 2. Auto-detect
@@ -66,6 +68,7 @@ func Load() Config {
 		Model:      model,
 		LLMBaseURL: llmBaseURL,
 		Language:   language,
+		AIProvider: aiProvider,
 	}
 	return cfg
 }

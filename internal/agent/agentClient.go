@@ -1,24 +1,19 @@
 package agent
 
 import (
-	"fmt"
-	"os"
+	_ "embed"
 
 	"github.com/SongRunqi/go-todo/app"
 )
 
+//go:embed SYSTEM.md
+var systemPrompt string
+
 var agentContext app.AgentContext
 
 func setSystemPrompts() {
-	file, err := os.ReadFile("../../agentcmd/SYSTEM.md")
-	if err != nil {
-		panic(err)
-		fmt.Printf("%v\n", err)
-	}
-	s := string(file)
-	msg := app.Msg{Role: "System", Content: s}
+	msg := app.Msg{Role: "System", Content: systemPrompt}
 	agentContext.InteractionHistory = append(agentContext.InteractionHistory, msg)
-
 }
 
 func StartUp() {

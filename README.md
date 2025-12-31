@@ -67,7 +67,10 @@ A powerful AI-powered todo management CLI application with Alfred integration, b
 
 ### Prerequisites
 
-- **DeepSeek API key** (or compatible LLM API) - [Get API Key](https://platform.deepseek.com/)
+- **AI API key** from one of the supported providers:
+  - **DeepSeek** (default) - [Get API Key](https://platform.deepseek.com/)
+  - **OpenAI** - [Get API Key](https://platform.openai.com/api-keys)
+  - **Anthropic Claude** - [Get API Key](https://console.anthropic.com/)
 
 ### Recommended: Quick Install from Release (No Go Required)
 
@@ -208,35 +211,56 @@ todo back
 The application uses the following environment variables:
 
 #### Required
-- `API_KEY`: Your DeepSeek API key for LLM functionality (or `DEEPSEEK_API_KEY`)
+- `API_KEY`: Your API key for the selected AI provider
 
 #### Optional
+- `AI_PROVIDER`: AI provider to use (default: `deepseek`)
+  - Supported values: `deepseek`, `openai`, `anthropic`
+  - Aliases: `gpt`/`chatgpt` → OpenAI, `claude` → Anthropic, `ds` → DeepSeek
 - `TODO_LANG`: Set language for interface (defaults to auto-detect from system)
   - Supported values: `en` (English), `zh` (Chinese)
   - Auto-detects from `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, or `LANG` if not set
-- `LLM_BASE_URL`: Custom LLM API endpoint (defaults to `https://api.deepseek.com/chat/completions`)
-  - Use this to switch to other LLM providers (OpenAI, Claude, etc.)
-- `LLM_MODEL`: Model to use (defaults to the provider's default)
+- `LLM_BASE_URL`: Custom LLM API endpoint (leave empty for provider defaults)
+- `LLM_MODEL`: Model to use (leave empty for provider defaults)
 - `LOG_LEVEL`: Logging level - `debug`, `info`, `warn`, `error` (default: `info`)
 - `NO_COLOR`: Set to any value to disable colored output
+
+### Supported AI Providers
+
+| Provider | Default Model | Default API URL |
+|----------|---------------|-----------------|
+| DeepSeek | `deepseek-chat` | `https://api.deepseek.com/chat/completions` |
+| OpenAI | `gpt-4o-mini` | `https://api.openai.com/v1/chat/completions` |
+| Anthropic | `claude-sonnet-4-20250514` | `https://api.anthropic.com/v1/messages` |
 
 ### Configuration Examples
 
 ```bash
-# Basic configuration (add to ~/.bashrc or ~/.zshrc)
-export API_KEY="your-api-key-here"
+# Basic configuration with DeepSeek (default)
+export API_KEY="your-deepseek-api-key"
 
-# Full configuration
+# Use OpenAI GPT-4
+export AI_PROVIDER="openai"
+export API_KEY="sk-your-openai-api-key"
+export LLM_MODEL="gpt-4-turbo"  # optional, defaults to gpt-4o-mini
+
+# Use Anthropic Claude
+export AI_PROVIDER="anthropic"
+export API_KEY="sk-ant-your-anthropic-api-key"
+export LLM_MODEL="claude-3-opus-20240229"  # optional
+
+# Use Azure OpenAI
+export AI_PROVIDER="openai"
+export API_KEY="your-azure-api-key"
+export LLM_BASE_URL="https://your-resource.openai.azure.com/openai/deployments/your-deployment/chat/completions?api-version=2024-02-01"
+export LLM_MODEL="gpt-4"
+
+# Full configuration example
+export AI_PROVIDER="deepseek"
 export API_KEY="your-api-key-here"
-export LLM_BASE_URL="https://api.deepseek.com/chat/completions"
 export LLM_MODEL="deepseek-chat"
 export LOG_LEVEL="info"
 export TODO_LANG="en"  # or "zh" for Chinese
-
-# Use OpenAI instead
-export API_KEY="your-openai-api-key"
-export LLM_BASE_URL="https://api.openai.com/v1/chat/completions"
-export LLM_MODEL="gpt-4"
 ```
 
 ## Internationalization (i18n)
@@ -847,7 +871,10 @@ go-todo/
 │   ├── validator/              # Input validation
 │   ├── ai/                     # AI client abstraction
 │   │   ├── client.go          # Interface definition
+│   │   ├── factory.go         # Provider factory
 │   │   ├── deepseek.go        # DeepSeek implementation
+│   │   ├── openai.go          # OpenAI implementation
+│   │   ├── anthropic.go       # Anthropic Claude implementation
 │   │   └── mock.go            # Mock for testing
 │   ├── storage/                # Storage implementations
 │   │   └── memory.go          # In-memory storage
@@ -905,8 +932,9 @@ go-todo/
 - Status and urgency validation
 
 **internal/ai** - AI client abstraction
-- Interface-based design
-- DeepSeek implementation
+- Interface-based design for multiple providers
+- DeepSeek, OpenAI, and Anthropic Claude implementations
+- Provider factory with auto-detection
 - Mock client for testing
 
 **internal/output** - Terminal output
@@ -1013,16 +1041,25 @@ echo $DEEPSEEK_API_KEY
 export DEEPSEEK_API_KEY="your-key-here"
 ```
 
-### Custom LLM Provider
+### Switching AI Providers
 
-To use a different LLM provider:
+To use a different AI provider:
 ```bash
-# OpenAI example
-export LLM_BASE_URL="https://api.openai.com/v1/chat/completions"
-export DEEPSEEK_API_KEY="your-openai-api-key"
+# DeepSeek (default)
+export AI_PROVIDER="deepseek"
+export API_KEY="your-deepseek-api-key"
 
-# Anthropic Claude example (via proxy)
-export LLM_BASE_URL="https://your-claude-proxy.com/v1/chat/completions"
+# OpenAI
+export AI_PROVIDER="openai"
+export API_KEY="sk-your-openai-api-key"
+
+# Anthropic Claude
+export AI_PROVIDER="anthropic"
+export API_KEY="sk-ant-your-anthropic-api-key"
+
+# Or use aliases
+export AI_PROVIDER="gpt"      # Same as "openai"
+export AI_PROVIDER="claude"   # Same as "anthropic"
 ```
 
 ### Build Errors
