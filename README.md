@@ -11,6 +11,20 @@
 
 A powerful AI-powered todo management CLI application with Alfred integration, built in Go.
 
+## 🎩 Alfred Workflow
+
+> **Quick Access for macOS Users!** Manage your todos directly from Alfred.
+
+[![Download Alfred Workflow](https://img.shields.io/badge/Download-Alfred%20Workflow-blueviolet?style=for-the-badge&logo=alfred)](go-todo.alfredworkflow)
+
+**[⬇️ Download go-todo.alfredworkflow](go-todo.alfredworkflow)** - Double-click to install in Alfred.
+
+**Features:**
+- 🚀 Quick task creation with natural language
+- 📋 Instant task listing and search
+- ✅ Complete tasks with a keystroke
+- 🔍 Full Alfred integration with fuzzy search
+
 ## Features
 
 ### Core Features
